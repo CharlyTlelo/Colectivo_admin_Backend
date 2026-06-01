@@ -1,0 +1,23 @@
+spring:
+  data:
+    mongodb:
+      uri: ${MONGODB_URI:mongodb://localhost:27017/colectivo}
+  application:
+    name: colectivo-admin
+
+server:
+  port: 8080
+
+colectivo:
+  jwt:
+    secret: ${JWT_SECRET:colectivo-admin-secret-key-2026-min-256-bits-here}
+    expiration-ms: 86400000  # 24h
+  admin:
+    otp-ttl-minutes: 5
+    otp-max-attempts: 3
+  cors:
+    allowed-origins: ${CORS_ORIGINS:http://localhost:4200}
+
+logging:
+  level:
+    com.colectivo: DEBUG
