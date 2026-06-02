@@ -5,7 +5,6 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.Id;
-import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.Instant;
@@ -21,40 +20,40 @@ public class DriverVerification {
     @Id
     private String id;
 
-    // User info
-    private String name;
+    // FK to users collection
+    private String userId;
 
-    @Indexed(unique = true)
-    private String phone;
+    // Vehicle info
+    private String plate;
+    private int capacity;
+    private String clabe;
 
-    private String email;
-
-    // Vehicle info (from catalog)
+    // Vehicle catalog fields (set by mobile app on registration)
     private String marca;
     private String modelo;
     private int anio;
-    private String plate;
-    private int capacity; // 4, 5, or 6
 
-    // Document photo URLs (base64 or private URL)
+    // Document photo URLs
     private String licenseFrontUrl;
     private String licenseBackUrl;
     private String platePhotoUrl;
     private String vehiclePhotoUrl;
 
-    // Verification state
+    // License and verification state
+    private String licenseStatus;
     private VerificationStatus verificationStatus;
+    private double totalEarnings;
+
+    // Admin verification fields
     private String verificationNote;
     private String verificationDecidedBy;
     private Instant verificationDecidedAt;
     private Instant verificationRequestedAt;
-
-    // For re-submissions: fields that were previously rejected
     private List<String> rejectedFields;
     private boolean resubmit;
     private List<String> prevRejectedFields;
 
     public enum VerificationStatus {
-        PENDING, APPROVED, REJECTED
+        pending, approved, rejected
     }
 }

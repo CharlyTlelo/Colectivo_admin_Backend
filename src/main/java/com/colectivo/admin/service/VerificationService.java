@@ -4,17 +4,19 @@ import com.colectivo.admin.dto.ApproveRejectDto;
 import com.colectivo.admin.dto.DriverVerificationDto;
 import com.colectivo.admin.dto.QueueStatsDto;
 import com.colectivo.admin.model.DriverVerification;
+import com.colectivo.admin.model.User;
 import com.colectivo.admin.repository.DriverVerificationRepository;
+import com.colectivo.admin.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -22,11 +24,15 @@ import java.util.List;
 public class VerificationService {
 
     private final DriverVerificationRepository repository;
+    private final UserRepository userRepository;
 
     public QueueStatsDto getQueue() {
         List<DriverVerification> pending = repository
                 .findByVerificationStatusOrderByVerificationRequestedAtAsc(
-                        DriverVerification.VerificationStatus.PENDING);
+                        DriverVerification.VerificationStatus.pending);
+
+        // Bulk-load users for all pending drivers
+        Map<String, User> usersById = loadUsersForDrivers(pending);
 
         Instant now = Instant.now();
         Instant startOfDay = now.truncatedTo(ChronoUnit.DAYS);
@@ -38,13 +44,13 @@ public class VerificationService {
                 .count();
 
         long approvedToday = repository.countByVerificationStatusAndVerificationDecidedAtBetween(
-                DriverVerification.VerificationStatus.APPROVED, startOfDay, now);
+                DriverVerification.VerificationStatus.approved, startOfDay, now);
 
         long rejectedToday = repository.countByVerificationStatusAndVerificationDecidedAtBetween(
-                DriverVerification.VerificationStatus.REJECTED, startOfDay, now);
+                DriverVerification.VerificationStatus.rejected, startOfDay, now);
 
         List<DriverVerificationDto> dtos = pending.stream()
-                .map(this::toDto)
+                .map(d -> toDto(d, usersById.get(d.getUserId())))
                 .toList();
 
         return QueueStatsDto.builder()
@@ -59,7 +65,10 @@ public class VerificationService {
     public DriverVerificationDto getById(String id) {
         DriverVerification driver = repository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Driver not found: " + id));
-        return toDto(driver);
+        User user = driver.getUserId() != null
+                ? userRepository.findById(driver.getUserId()).orElse(null)
+                : null;
+        return toDto(driver, user);
     }
 
     public DriverVerificationDto approve(String id) {
@@ -69,7 +78,8 @@ public class VerificationService {
         String decidedBy = getCurrentAdminPhone();
         Instant now = Instant.now();
 
-        driver.setVerificationStatus(DriverVerification.VerificationStatus.APPROVED);
+        driver.setVerificationStatus(DriverVerification.VerificationStatus.approved);
+        driver.setLicenseStatus("active");
         driver.setVerificationDecidedBy(decidedBy);
         driver.setVerificationDecidedAt(now);
         driver.setRejectedFields(List.of());
@@ -77,7 +87,10 @@ public class VerificationService {
         repository.save(driver);
 
         log.info("Driver {} approved by {}", id, decidedBy);
-        return toDto(driver);
+        User user = driver.getUserId() != null
+                ? userRepository.findById(driver.getUserId()).orElse(null)
+                : null;
+        return toDto(driver, user);
     }
 
     public DriverVerificationDto reject(String id, ApproveRejectDto dto) {
@@ -91,7 +104,7 @@ public class VerificationService {
         String decidedBy = getCurrentAdminPhone();
         Instant now = Instant.now();
 
-        driver.setVerificationStatus(DriverVerification.VerificationStatus.REJECTED);
+        driver.setVerificationStatus(DriverVerification.VerificationStatus.rejected);
         driver.setVerificationDecidedBy(decidedBy);
         driver.setVerificationDecidedAt(now);
         driver.setRejectedFields(dto.getRejectedFields());
@@ -99,7 +112,21 @@ public class VerificationService {
         repository.save(driver);
 
         log.info("Driver {} rejected by {} for fields: {}", id, decidedBy, dto.getRejectedFields());
-        return toDto(driver);
+        User user = driver.getUserId() != null
+                ? userRepository.findById(driver.getUserId()).orElse(null)
+                : null;
+        return toDto(driver, user);
+    }
+
+    private Map<String, User> loadUsersForDrivers(List<DriverVerification> drivers) {
+        List<String> userIds = drivers.stream()
+                .map(DriverVerification::getUserId)
+                .filter(uid -> uid != null)
+                .distinct()
+                .toList();
+        if (userIds.isEmpty()) return Map.of();
+        return userRepository.findAllById(userIds).stream()
+                .collect(Collectors.toMap(User::getId, u -> u));
     }
 
     private String getCurrentAdminPhone() {
@@ -107,34 +134,30 @@ public class VerificationService {
         return principal != null ? principal.toString() : "unknown";
     }
 
-    private DriverVerificationDto toDto(DriverVerification d) {
+    private DriverVerificationDto toDto(DriverVerification d, User user) {
         Instant now = Instant.now();
         double hoursAgo = d.getVerificationRequestedAt() != null
                 ? (double) ChronoUnit.MINUTES.between(d.getVerificationRequestedAt(), now) / 60.0
                 : 0;
 
-        String requestedAtStr = d.getVerificationRequestedAt() != null
-                ? d.getVerificationRequestedAt().toString()
-                : null;
-
-        String decidedAtStr = d.getVerificationDecidedAt() != null
-                ? d.getVerificationDecidedAt().toString()
-                : null;
-
-        String initials = computeInitials(d.getName());
+        String name = user != null ? user.getName() : null;
+        String phone = user != null ? user.getPhone() : null;
+        String email = user != null ? user.getEmail() : null;
+        String initials = user != null ? user.getInitials() : computeInitials(name);
 
         return DriverVerificationDto.builder()
                 .id(d.getId())
-                .name(d.getName())
-                .phone(d.getPhone())
-                .email(d.getEmail())
+                .name(name)
+                .phone(phone)
+                .email(email)
                 .initials(initials)
                 .marca(d.getMarca())
                 .modelo(d.getModelo())
                 .anio(d.getAnio())
                 .plate(d.getPlate())
                 .capacity(d.getCapacity())
-                .requestedAt(requestedAtStr)
+                .requestedAt(d.getVerificationRequestedAt() != null
+                        ? d.getVerificationRequestedAt().toString() : null)
                 .hoursAgo(hoursAgo)
                 .resubmit(d.isResubmit())
                 .prevRejected(d.getPrevRejectedFields())
@@ -146,7 +169,8 @@ public class VerificationService {
                 .vehiclePhotoUrl(d.getVehiclePhotoUrl())
                 .verificationNote(d.getVerificationNote())
                 .verificationDecidedBy(d.getVerificationDecidedBy())
-                .verificationDecidedAt(decidedAtStr)
+                .verificationDecidedAt(d.getVerificationDecidedAt() != null
+                        ? d.getVerificationDecidedAt().toString() : null)
                 .rejectedFields(d.getRejectedFields())
                 .build();
     }
