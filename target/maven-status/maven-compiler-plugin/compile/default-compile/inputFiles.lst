@@ -1,6 +1,7 @@
 C:\Users\carlo\Documents\Colectivo Admin\backend\src\main\java\com\colectivo\admin\repository\FineRepository.java
 C:\Users\carlo\Documents\Colectivo Admin\backend\src\main\java\com\colectivo\admin\model\AdminUser.java
 C:\Users\carlo\Documents\Colectivo Admin\backend\src\main\java\com\colectivo\admin\repository\VehicleMakeRepository.java
+C:\Users\carlo\Documents\Colectivo Admin\backend\src\main\java\com\colectivo\admin\config\MongoConfig.java
 C:\Users\carlo\Documents\Colectivo Admin\backend\src\main\java\com\colectivo\admin\dto\ApproveRejectDto.java
 C:\Users\carlo\Documents\Colectivo Admin\backend\src\main\java\com\colectivo\admin\dto\OtpRequestDto.java
 C:\Users\carlo\Documents\Colectivo Admin\backend\src\main\java\com\colectivo\admin\controller\VerificationController.java

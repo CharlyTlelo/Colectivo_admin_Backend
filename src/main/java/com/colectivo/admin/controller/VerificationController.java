@@ -36,4 +36,15 @@ public class VerificationController {
             @RequestBody ApproveRejectDto dto) {
         return ResponseEntity.ok(verificationService.reject(id, dto));
     }
+
+    @PostMapping("/{id}/user/suspend")
+    public ResponseEntity<DriverVerificationDto> suspendUser(@PathVariable String id) {
+        return ResponseEntity.ok(verificationService.suspendUser(id));
+    }
+
+    @DeleteMapping("/{id}/user")
+    public ResponseEntity<Void> deleteUser(@PathVariable String id) {
+        verificationService.deleteUser(id);
+        return ResponseEntity.noContent().build();
+    }
 }

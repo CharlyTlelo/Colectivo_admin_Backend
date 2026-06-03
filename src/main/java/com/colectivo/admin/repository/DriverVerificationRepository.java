@@ -6,6 +6,7 @@ import org.springframework.stereotype.Repository;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface DriverVerificationRepository extends MongoRepository<DriverVerification, String> {
@@ -20,4 +21,10 @@ public interface DriverVerificationRepository extends MongoRepository<DriverVeri
 
     long countByVerificationStatusAndVerificationRequestedAtBefore(
             DriverVerification.VerificationStatus status, Instant threshold);
+
+    List<DriverVerification> findByUserIdIn(List<String> userIds);
+
+    Optional<DriverVerification> findFirstByUserIdOrderByVerificationRequestedAtDesc(String userId);
+
+    void deleteByUserId(String userId);
 }

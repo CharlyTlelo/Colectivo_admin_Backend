@@ -9,6 +9,7 @@ import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.Instant;
+import java.util.List;
 
 @Data
 @Builder
@@ -27,6 +28,9 @@ public class User {
     private String email;
     private String initials;
     private String role;        // "pax" | "driver"
+    private String registeredAs; // "pax" | "drv"
+    private List<String> profiles;
+    private String activeProfile; // "pax" | "drv"
     private double rating;
     private int tripCount;
     private double debtAmount;

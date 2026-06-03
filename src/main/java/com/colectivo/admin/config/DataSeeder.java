@@ -5,6 +5,7 @@ import com.colectivo.admin.repository.AdminUserRepository;
 import com.colectivo.admin.repository.DriverVerificationRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
@@ -21,8 +22,16 @@ public class DataSeeder implements CommandLineRunner {
     private final DriverVerificationRepository driverRepository;
     private final PasswordEncoder passwordEncoder;
 
+    @Value("${colectivo.data-seeder.enabled:true}")
+    private boolean enabled;
+
     @Override
     public void run(String... args) {
+        if (!enabled) {
+            log.info("Data seeder disabled, skipping startup seed.");
+            return;
+        }
+
         seedAdmin();
         seedDrivers();
     }

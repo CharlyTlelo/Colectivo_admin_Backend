@@ -13,10 +13,22 @@ import java.util.List;
 @AllArgsConstructor
 public class DriverVerificationDto {
     private String id;
+    private String userId;
     private String name;
     private String phone;
     private String email;
     private String initials;
+    private String accountRole;
+    private String registeredAs;
+    private List<String> profiles;
+    private String activeProfile;
+    private String passengerProfileStatus;
+    private String driverProfileStatus;
+    private double rating;
+    private int tripCount;
+    private double debtAmount;
+    private boolean blocked;
+    private String userCreatedAt;
     private String marca;
     private String modelo;
     private int anio;

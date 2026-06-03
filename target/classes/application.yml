@@ -1,4 +1,8 @@
 spring:
+  config:
+    import:
+      - optional:file:.env[.properties]
+      - optional:file:../.env[.properties]
   data:
     mongodb:
       uri: ${MONGODB_URI:mongodb://localhost:27017/colectivo}
@@ -6,7 +10,7 @@ spring:
     name: colectivo-admin
 
 server:
-  port: 8080
+  port: ${SERVER_PORT:8081}
 
 colectivo:
   jwt:
@@ -15,9 +19,28 @@ colectivo:
   admin:
     otp-ttl-minutes: 5
     otp-max-attempts: 3
+  data-seeder:
+    enabled: ${COLECTIVO_DATA_SEEDER_ENABLED:true}
   cors:
     allowed-origins: ${CORS_ORIGINS:http://localhost:4200}
 
 logging:
   level:
     com.colectivo: DEBUG
+
+---
+spring:
+  config:
+    activate:
+      on-profile: docker
+  data:
+    mongodb:
+      uri: ${MONGODB_URI}
+
+colectivo:
+  cors:
+    allowed-origins: ${CORS_ORIGINS}
+
+logging:
+  level:
+    com.colectivo: INFO
