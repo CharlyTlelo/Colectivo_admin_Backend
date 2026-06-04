@@ -10,7 +10,7 @@ spring:
     name: colectivo-admin
 
 server:
-  port: ${SERVER_PORT:8081}
+  port: ${PORT:${SERVER_PORT:8081}}
 
 colectivo:
   jwt:
@@ -40,6 +40,8 @@ spring:
 colectivo:
   cors:
     allowed-origins: ${CORS_ORIGINS}
+  data-seeder:
+    enabled: false
 
 logging:
   level:

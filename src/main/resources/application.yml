@@ -10,7 +10,7 @@ spring:
     name: colectivo-admin
 
 server:
-  port: ${PORT:${SERVER_PORT:8080}}
+  port: ${PORT:${SERVER_PORT:8081}}
 
 colectivo:
   jwt:
