@@ -1,5 +1,6 @@
 steps:
   - name: 'gcr.io/cloud-builders/docker'
+    id: 'build'
     args:
       - build
       - -t
@@ -7,7 +8,28 @@ steps:
       - .
 
   - name: 'gcr.io/cloud-builders/docker'
+    id: 'push'
     args: [push, 'us-central1-docker.pkg.dev/$PROJECT_ID/colectivo/admin-backend:latest']
+
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    id: 'deploy'
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - colectivo-admin-backend
+      - --image=us-central1-docker.pkg.dev/$PROJECT_ID/colectivo/admin-backend:latest
+      - --region=us-central1
+      - --memory=512Mi
+      - --cpu=1
+      - --min-instances=0
+      - --max-instances=2
+      - --cpu-boost
+      - --allow-unauthenticated
+      - --set-secrets=MONGODB_URI=MONGODB_URI:latest,JWT_SECRET=JWT_SECRET:latest
+      - --set-env-vars=SPRING_PROFILES_ACTIVE=docker,CORS_ORIGINS=https://colectivo-admin.web.app,COLECTIVO_DATA_SEEDER_ENABLED=false
+      - --project=$PROJECT_ID
+      - --quiet
 
 images:
   - us-central1-docker.pkg.dev/$PROJECT_ID/colectivo/admin-backend:latest
