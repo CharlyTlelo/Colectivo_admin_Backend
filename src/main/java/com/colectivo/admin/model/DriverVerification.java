@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.mongodb.core.mapping.Field;
 
 import java.time.Instant;
 import java.util.List;
@@ -28,16 +29,27 @@ public class DriverVerification {
     private int capacity;
     private String clabe;
 
-    // Vehicle catalog fields (set by mobile app on registration)
+    // Vehicle catalog fields (set by Carpool mobile app on registration).
+    // The app persists vehicleMakeName/vehicleModelName/vehicleYear; @Field remaps
+    // them onto the existing marca/modelo/anio properties so the rest of the
+    // stack (DTO, frontend) keeps the same contract.
+    @Field("vehicleMakeName")
     private String marca;
+    @Field("vehicleModelName")
     private String modelo;
+    @Field("vehicleYear")
     private int anio;
 
-    // Document photo URLs
+    // Vehicle catalog IDs (set by Carpool mobile app)
+    private String vehicleMakeId;
+    private String vehicleModelId;
+
+    // Document photo URLs (base64 data URLs)
     private String licenseFrontUrl;
     private String licenseBackUrl;
     private String platePhotoUrl;
     private String vehiclePhotoUrl;
+    private String vehicleInteriorUrl;
 
     // License and verification state
     private String licenseStatus;

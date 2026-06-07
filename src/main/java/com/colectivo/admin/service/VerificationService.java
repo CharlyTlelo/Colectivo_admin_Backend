@@ -276,6 +276,7 @@ public class VerificationService {
                 .licenseBackUrl(d != null ? d.getLicenseBackUrl() : null)
                 .platePhotoUrl(d != null ? d.getPlatePhotoUrl() : null)
                 .vehiclePhotoUrl(d != null ? d.getVehiclePhotoUrl() : null)
+                .vehicleInteriorUrl(d != null ? d.getVehicleInteriorUrl() : null)
                 .verificationNote(d != null ? d.getVerificationNote() : null)
                 .verificationDecidedBy(d != null ? d.getVerificationDecidedBy() : null)
                 .verificationDecidedAt(d != null && d.getVerificationDecidedAt() != null
