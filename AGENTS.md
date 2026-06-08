@@ -21,6 +21,26 @@
   Si agregas otro doc requerido, actualiza esta lista y revisa
   `computeVerificationStatus` + `normalizeDocumentStatuses`.
 
+## Deuda conocida: REQUIRED_DOCUMENT_FIELDS duplicado
+
+La lista `["platePhoto", "vehiclePhoto", "licFront", "licBack"]` y la función
+`computeVerificationStatus` viven **tanto aquí como en el backend Carpool**
+(`mx.colectivo.api.service.DriverService`). Hoy están alineados; mañana
+cualquier cambio (nuevo doc requerido, nuevo estado) exige tocar ambos
+repos + ambos frontends y validar manualmente.
+
+Si vas a agregar/quitar un documento requerido:
+1. `Colectivo_backend/.../DriverService.java` — `REQUIRED_DOCUMENT_FIELDS`
+2. Este repo — `VerificationService.java` `REQUIRED_DOCUMENT_FIELDS`
+3. `Colectivo_admin_Frontend/.../review.component.ts` — `REVIEW_ITEMS`
+4. `Colectivo_frontend/.../DriverPending.jsx` — `DOCS`
+5. Validar end-to-end registro → reenvío → aprobación.
+
+Mejora futura (no urgente): extraer a un módulo Java compartido publicado
+en Artifact Registry (Maven), o derivar la lista de la BD (catálogo) y
+expornerla via endpoint que ambos frontends consuman. Hasta entonces, este
+bloque de docs es la fuente de verdad para que cualquier agente lo entienda.
+
 ## Lo que NO escribe este backend
 
 - Estructura inicial del driver (plate, capacity, fotos, capacidad). Eso lo

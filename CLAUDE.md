@@ -24,6 +24,8 @@ Este repo es **una de dos plataformas** que componen Colectivo. Comparten **visi
 - Frontend admin que lo consume: https://colectivo-admin.web.app
 - Backend Carpool (separado, NO este): Cloud Run `colectivo-api` us-south1.
 
+**Deuda conocida — REQUIRED_DOCUMENT_FIELDS duplicado:** la lista `["platePhoto", "vehiclePhoto", "licFront", "licBack"]` y `computeVerificationStatus` viven tanto aquí como en `Colectivo_backend/.../DriverService.java`. Hoy están alineados; cualquier cambio futuro exige tocar ambos repos + ambos frontends (`REVIEW_ITEMS` en admin, `DOCS` en Carpool). Pasos al agregar un doc: (1) ambos `REQUIRED_DOCUMENT_FIELDS`, (2) admin `REVIEW_ITEMS`, (3) Carpool `DOCS`, (4) E2E registro→reenvío→aprobación.
+
 **Cuándo NO tocar este backend:**
 - Lógica de transición cuando el conductor **reenvía** un doc rechazado → es **Carpool backend** (`DriverService.updateMe`), no este. Este solo lee el resultado.
 - Lógica de cómo se inicializa `documentStatuses` al registrar un driver → **Carpool backend** (`DriverService.register`).
