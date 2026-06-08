@@ -19,6 +19,7 @@ public class Trip {
     @Id
     private String id;
 
+    private String routeId;
     private String driverId;
     private String origin;
     private String destination;
@@ -30,5 +31,13 @@ public class Trip {
     private double meetingPointLat;
     private double meetingPointLng;
     private String meetingPointLabel;
+    private double destinationLat;
+    private double destinationLng;
+    private double routeDistanceKm;
+    private String routeKey;
+    private String routeMonitorStatus;
+    private String routeMonitorSummary;
+    private String meetingPointDescription;
+    private String finalDestinationDescription;
     private Instant createdAt;
 }

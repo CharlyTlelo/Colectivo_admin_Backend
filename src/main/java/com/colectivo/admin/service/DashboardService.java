@@ -390,7 +390,7 @@ public class DashboardService {
                 .limit(6)
                 .map(trip -> item(
                         fallback(trip.getOrigin(), "Origen sin dato") + " -> " + fallback(trip.getDestination(), "Destino sin dato"),
-                        "Salida " + dateLabel(trip.getDepartureTime()) + " - " + trip.getTakenSeats() + "/" + trip.getCapacity() + " asientos",
+                        activeTripMeta(trip),
                         fallback(trip.getStatus(), "Activo"),
                         toneForTrip(trip),
                         "/dashboard"
@@ -566,11 +566,24 @@ public class DashboardService {
     }
 
     private String toneForTrip(Trip trip) {
+        if ("needs_review".equals(normalizeStatus(trip.getRouteMonitorStatus()))) return "danger";
+        if ("long_route".equals(normalizeStatus(trip.getRouteMonitorStatus()))) return "amber";
         if (trip.getCapacity() > 0 && trip.getTakenSeats() > trip.getCapacity()) return "danger";
         if (hasStatus(trip, "cancelled")) return "danger";
         if (hasStatus(trip, "boarding", "in_progress")) return "blue";
         if (hasStatus(trip, "published")) return "green";
         return "neutral";
+    }
+
+    private String activeTripMeta(Trip trip) {
+        String base = "Salida " + dateLabel(trip.getDepartureTime()) + " - " + trip.getTakenSeats() + "/" + trip.getCapacity() + " asientos";
+        if (trip.getRouteMonitorSummary() != null && !trip.getRouteMonitorSummary().isBlank()) {
+            return base + " - " + trip.getRouteMonitorSummary();
+        }
+        if (trip.getFinalDestinationDescription() != null && !trip.getFinalDestinationDescription().isBlank()) {
+            return base + " - final: " + trip.getFinalDestinationDescription();
+        }
+        return base;
     }
 
     private int severityOrder(DashboardSnapshotDto.AlertDto alert) {
