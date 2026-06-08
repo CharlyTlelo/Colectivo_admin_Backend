@@ -6,11 +6,13 @@ import com.colectivo.admin.model.DriverVerification;
 import com.colectivo.admin.model.Fine;
 import com.colectivo.admin.model.Rating;
 import com.colectivo.admin.model.Trip;
+import com.colectivo.admin.model.TripArchiveIndex;
 import com.colectivo.admin.model.User;
 import com.colectivo.admin.repository.BookingRepository;
 import com.colectivo.admin.repository.DriverVerificationRepository;
 import com.colectivo.admin.repository.FineRepository;
 import com.colectivo.admin.repository.RatingRepository;
+import com.colectivo.admin.repository.TripArchiveIndexRepository;
 import com.colectivo.admin.repository.TripRepository;
 import com.colectivo.admin.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -47,6 +49,7 @@ public class DashboardService {
     private final BookingRepository bookingRepository;
     private final FineRepository fineRepository;
     private final RatingRepository ratingRepository;
+    private final TripArchiveIndexRepository tripArchiveIndexRepository;
 
     public DashboardSnapshotDto getSnapshot() {
         Instant now = Instant.now();
@@ -109,9 +112,12 @@ public class DashboardService {
                 sevenDaysAgo
         );
 
+        List<TripArchiveIndex> recentArchives = tripArchiveIndexRepository.findTop100ByOrderByArchivedAtDesc();
+
         List<DashboardSnapshotDto.SectionDto> sections = List.of(
                 section("verifications", "Verificaciones pendientes", "Ordenadas por antiguedad y riesgo", pendingVerificationItems(pendingDrivers, users, now)),
-                section("activeTrips", "Viajes activos", "Estados que requieren seguimiento operativo", activeTripItems(trips, now)),
+                section("activeTrips", "Viajes en operacion", "Publicados, abordando o en curso — detalle completo del conductor", activeTripItems(trips, now)),
+                section("recentArchives", "Historial reciente", "Viajes finalizados archivados en disco (JSON/TXT)", recentArchiveItems(recentArchives)),
                 section("incidents", "Incidentes operativos", "Reservas, multas y no-shows recientes", incidentItems(bookings, fines, users, sevenDaysAgo)),
                 section("quality", "Calidad y calificaciones", "Ratings bajos y usuarios con promedio delicado", qualityItems(ratings, users, sevenDaysAgo))
         );
@@ -129,6 +135,7 @@ public class DashboardService {
         searchUsers(normalizedQuery, results);
         searchDrivers(normalizedQuery, results);
         searchTrips(normalizedQuery, results);
+        searchArchives(normalizedQuery, results);
         searchBookings(normalizedQuery, results);
         searchFines(normalizedQuery, results);
         return results.stream().limit(SEARCH_LIMIT).toList();
@@ -168,33 +175,61 @@ public class DashboardService {
 
     private void searchTrips(String query, List<DashboardSnapshotDto.SearchResultDto> results) {
         tripRepository.findAll().stream()
-                .filter(trip -> matches(query, trip.getId(), trip.getDriverId(), trip.getOrigin(), trip.getDestination()))
+                .filter(trip -> matches(query, trip.getId(), trip.getDriverId(), trip.getOrigin(), trip.getDestination(),
+                        trip.getMeetingPointDescription(), trip.getDestinationDetail(), trip.getMeetingPointLabel(), trip.getNotes()))
                 .limit(SEARCH_LIMIT)
                 .map(trip -> new DashboardSnapshotDto.SearchResultDto(
                         "Viaje",
                         trip.getId(),
                         fallback(trip.getOrigin(), "Origen sin dato") + " -> " + fallback(trip.getDestination(), "Destino sin dato"),
-                        "Salida " + dateLabel(trip.getDepartureTime()) + " - " + trip.getTakenSeats() + "/" + trip.getCapacity() + " asientos",
+                        tripDetailSubtitle(trip),
                         fallback(trip.getStatus(), "Sin estado"),
                         toneForTrip(trip),
-                        "/dashboard"
+                        "/trips/" + trip.getId()
+                ))
+                .forEach(results::add);
+    }
+
+    private void searchArchives(String query, List<DashboardSnapshotDto.SearchResultDto> results) {
+        tripArchiveIndexRepository.findTop100ByOrderByArchivedAtDesc().stream()
+                .filter(index -> matches(query, index.getId(), index.getDriverId(), index.getOrigin(), index.getDestination()))
+                .limit(SEARCH_LIMIT)
+                .map(index -> new DashboardSnapshotDto.SearchResultDto(
+                        "Historial",
+                        index.getId(),
+                        fallback(index.getOrigin(), "Origen sin dato") + " -> " + fallback(index.getDestination(), "Destino sin dato"),
+                        "Archivado " + dateLabel(index.getArchivedAt()) + " - " + fallback(index.getTerminalStatus(), "finalizado"),
+                        "archivado",
+                        "neutral",
+                        "/history/" + index.getId()
                 ))
                 .forEach(results::add);
     }
 
     private void searchBookings(String query, List<DashboardSnapshotDto.SearchResultDto> results) {
+        Map<String, Trip> tripsById = tripRepository.findAll().stream()
+                .filter(trip -> trip.getId() != null)
+                .collect(Collectors.toMap(Trip::getId, Function.identity(), (first, second) -> first));
+
         bookingRepository.findAll().stream()
-                .filter(booking -> matches(query, booking.getId(), booking.getTripId(), booking.getPassengerId()))
+                .filter(booking -> matches(query, booking.getId(), booking.getTripId(), booking.getPassengerId(),
+                        bookingSnapshotText(booking)))
                 .limit(SEARCH_LIMIT)
-                .map(booking -> new DashboardSnapshotDto.SearchResultDto(
-                        "Reserva",
-                        booking.getId(),
-                        "Reserva " + shortId(booking.getId()),
-                        booking.getSeats() + " asiento(s) - viaje " + shortId(booking.getTripId()),
-                        fallback(booking.getStatus(), "Sin estado"),
-                        hasStatus(booking, "no_show", "cancelled") ? "danger" : "green",
-                        "/dashboard"
-                ))
+                .map(booking -> {
+                    Trip trip = tripsById.get(booking.getTripId());
+                    String routeHint = trip != null
+                            ? fallback(trip.getOrigin(), "?") + " -> " + fallback(trip.getDestination(), "?")
+                            : bookingSnapshotRoute(booking);
+                    return new DashboardSnapshotDto.SearchResultDto(
+                            "Reserva",
+                            booking.getId(),
+                            "Reserva " + shortId(booking.getId()),
+                            booking.getSeats() + " asiento(s) - " + routeHint,
+                            fallback(booking.getStatus(), "Sin estado"),
+                            hasStatus(booking, "no_show", "cancelled") ? "danger" : "green",
+                            trip != null ? "/trips/" + trip.getId() : "/history/" + booking.getTripId()
+                    );
+                })
                 .forEach(results::add);
     }
 
@@ -383,9 +418,25 @@ public class DashboardService {
                 .toList();
     }
 
+    private List<DashboardSnapshotDto.ListItemDto> recentArchiveItems(List<TripArchiveIndex> archives) {
+        return archives.stream()
+                .limit(6)
+                .map(index -> item(
+                        fallback(index.getOrigin(), "Origen sin dato") + " -> " + fallback(index.getDestination(), "Destino sin dato"),
+                        "Archivado " + dateLabel(index.getArchivedAt()) + " - " + index.getTakenSeats() + "/" + index.getCapacity()
+                                + " asientos - " + index.getBookingCount() + " reserva(s)",
+                        fallback(index.getTerminalStatus(), "archivado"),
+                        "neutral",
+                        "/history/" + index.getId(),
+                        index.getId(),
+                        "archive"
+                ))
+                .toList();
+    }
+
     private List<DashboardSnapshotDto.ListItemDto> activeTripItems(List<Trip> trips, Instant now) {
         return trips.stream()
-                .filter(this::isActiveTrip)
+                .filter(this::isOperationalTrip)
                 .sorted(Comparator.comparing(trip -> nullableInstant(trip.getDepartureTime())))
                 .limit(6)
                 .map(trip -> item(
@@ -393,7 +444,9 @@ public class DashboardService {
                         activeTripMeta(trip),
                         fallback(trip.getStatus(), "Activo"),
                         toneForTrip(trip),
-                        "/dashboard"
+                        "/trips/" + trip.getId(),
+                        trip.getId(),
+                        "trip"
                 ))
                 .toList();
     }
@@ -488,7 +541,12 @@ public class DashboardService {
     }
 
     private DashboardSnapshotDto.ListItemDto item(String title, String meta, String status, String tone, String route) {
-        return new DashboardSnapshotDto.ListItemDto(title, meta, status, tone, route);
+        return item(title, meta, status, tone, route, null, null);
+    }
+
+    private DashboardSnapshotDto.ListItemDto item(String title, String meta, String status, String tone, String route,
+                                                  String entityId, String entityType) {
+        return new DashboardSnapshotDto.ListItemDto(title, meta, status, tone, route, entityId, entityType);
     }
 
     private Map<String, Long> duplicatePlates(List<DriverVerification> drivers) {
@@ -515,6 +573,10 @@ public class DashboardService {
 
     private boolean isActiveTrip(Trip trip) {
         return hasStatus(trip, "boarding", "in_progress");
+    }
+
+    private boolean isOperationalTrip(Trip trip) {
+        return hasStatus(trip, "published", "boarding", "in_progress");
     }
 
     private boolean hasStatus(Trip trip, String... statuses) {
@@ -577,14 +639,44 @@ public class DashboardService {
 
     private String activeTripMeta(Trip trip) {
         String base = "Salida " + dateLabel(trip.getDepartureTime()) + " - " + trip.getTakenSeats() + "/" + trip.getCapacity() + " asientos";
-        if (trip.getRouteMonitorSummary() != null && !trip.getRouteMonitorSummary().isBlank()) {
-            return base + " - " + trip.getRouteMonitorSummary();
+        StringBuilder meta = new StringBuilder(base);
+        if (trip.getMeetingPointDescription() != null && !trip.getMeetingPointDescription().isBlank()) {
+            meta.append(" - encuentro: ").append(trip.getMeetingPointDescription().trim());
+        } else if (trip.getMeetingPointLabel() != null && !trip.getMeetingPointLabel().isBlank()) {
+            meta.append(" - encuentro: ").append(trip.getMeetingPointLabel().trim());
         }
         String destinationDetail = fallback(trip.getDestinationDetail(), trip.getFinalDestinationDescription());
         if (destinationDetail != null && !destinationDetail.isBlank()) {
-            return base + " - final: " + destinationDetail;
+            meta.append(" - destino final: ").append(destinationDetail.trim());
         }
-        return base;
+        if (trip.getNotes() != null && !trip.getNotes().isBlank()) {
+            meta.append(" - notas: ").append(trip.getNotes().trim());
+        }
+        if (trip.getRouteMonitorSummary() != null && !trip.getRouteMonitorSummary().isBlank()) {
+            meta.append(" - ").append(trip.getRouteMonitorSummary().trim());
+        }
+        return meta.toString();
+    }
+
+    private String tripDetailSubtitle(Trip trip) {
+        return activeTripMeta(trip);
+    }
+
+    private String bookingSnapshotText(Booking booking) {
+        if (booking.getTripSnapshot() == null) return "";
+        var s = booking.getTripSnapshot();
+        return String.join(" ",
+                fallback(s.getOrigin(), ""),
+                fallback(s.getDestination(), ""),
+                fallback(s.getMeetingPointDescription(), ""),
+                fallback(s.getDestinationDetail(), ""),
+                fallback(s.getNotes(), ""));
+    }
+
+    private String bookingSnapshotRoute(Booking booking) {
+        if (booking.getTripSnapshot() == null) return "viaje " + shortId(booking.getTripId());
+        var s = booking.getTripSnapshot();
+        return fallback(s.getOrigin(), "?") + " -> " + fallback(s.getDestination(), "?") + " (archivado)";
     }
 
     private int severityOrder(DashboardSnapshotDto.AlertDto alert) {

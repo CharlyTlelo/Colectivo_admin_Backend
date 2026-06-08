@@ -49,4 +49,5 @@ public class DriverVerificationDto {
     private String verificationDecidedAt;
     private List<String> rejectedFields;
     private Map<String, String> documentStatuses;
+    private List<DocumentPhotoDto> approvedPhotos;
 }

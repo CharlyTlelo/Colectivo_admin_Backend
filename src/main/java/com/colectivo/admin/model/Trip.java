@@ -42,5 +42,6 @@ public class Trip {
     private String meetingPointDescription;
     private String destinationDetail;
     private String finalDestinationDescription;
+    private String notes;
     private Instant createdAt;
 }

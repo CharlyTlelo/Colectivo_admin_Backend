@@ -1,6 +1,7 @@
 package com.colectivo.admin.service;
 
 import com.colectivo.admin.dto.ApproveRejectDto;
+import com.colectivo.admin.dto.DocumentPhotoDto;
 import com.colectivo.admin.dto.DriverVerificationDto;
 import com.colectivo.admin.dto.QueueStatsDto;
 import com.colectivo.admin.model.DriverVerification;
@@ -32,6 +33,13 @@ public class VerificationService {
             "vehiclePhoto",
             "licFront",
             "licBack"
+    );
+
+    private static final Map<String, String> DOCUMENT_LABELS = Map.of(
+            "platePhoto", "Foto de placa",
+            "vehiclePhoto", "Foto del vehiculo",
+            "licFront", "Licencia - frente",
+            "licBack", "Licencia - reverso"
     );
 
     private final DriverVerificationRepository repository;
@@ -254,6 +262,10 @@ public class VerificationService {
         String passengerProfileStatus = passengerProfileStatus(user);
         String driverProfileStatus = driverProfileStatus(d);
 
+        Map<String, DriverVerification.DocumentStatus> documentStatuses = d != null
+                ? normalizeDocumentStatuses(d)
+                : Map.of();
+
         return DriverVerificationDto.builder()
                 .id(d != null ? d.getId() : "user:" + user.getId())
                 .userId(user != null ? user.getId() : d.getUserId())
@@ -295,8 +307,34 @@ public class VerificationService {
                 .verificationDecidedAt(d != null && d.getVerificationDecidedAt() != null
                         ? d.getVerificationDecidedAt().toString() : null)
                 .rejectedFields(d != null ? d.getRejectedFields() : List.of())
-                .documentStatuses(d != null ? stringifyStatuses(normalizeDocumentStatuses(d)) : Map.of())
+                .documentStatuses(stringifyStatuses(documentStatuses))
+                .approvedPhotos(d != null ? approvedPhotos(d, documentStatuses) : List.of())
                 .build();
+    }
+
+    private List<DocumentPhotoDto> approvedPhotos(
+            DriverVerification driver,
+            Map<String, DriverVerification.DocumentStatus> documentStatuses
+    ) {
+        return REQUIRED_DOCUMENT_FIELDS.stream()
+                .filter(field -> documentStatuses.get(field) == DriverVerification.DocumentStatus.approved)
+                .map(field -> DocumentPhotoDto.builder()
+                        .field(field)
+                        .label(DOCUMENT_LABELS.getOrDefault(field, field))
+                        .url(documentUrl(driver, field))
+                        .build())
+                .filter(photo -> photo.getUrl() != null && !photo.getUrl().isBlank())
+                .toList();
+    }
+
+    private String documentUrl(DriverVerification driver, String field) {
+        return switch (field) {
+            case "platePhoto" -> driver.getPlatePhotoUrl();
+            case "vehiclePhoto" -> driver.getVehiclePhotoUrl();
+            case "licFront" -> driver.getLicenseFrontUrl();
+            case "licBack" -> driver.getLicenseBackUrl();
+            default -> null;
+        };
     }
 
     private Map<String, DriverVerification.DocumentStatus> allRequiredDocumentsApproved() {

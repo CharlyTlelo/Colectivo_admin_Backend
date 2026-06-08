@@ -25,4 +25,5 @@ public class Booking {
     private String status;      // confirmed | cancelled | no_show
     private boolean fineApplied;
     private Instant createdAt;
+    private TripSnapshot tripSnapshot;
 }

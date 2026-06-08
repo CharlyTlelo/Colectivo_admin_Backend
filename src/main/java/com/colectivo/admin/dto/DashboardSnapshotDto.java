@@ -38,7 +38,9 @@ public record DashboardSnapshotDto(
             String meta,
             String status,
             String tone,
-            String route
+            String route,
+            String entityId,
+            String entityType
     ) {}
 
     public record SearchResultDto(

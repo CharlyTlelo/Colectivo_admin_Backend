@@ -19,6 +19,8 @@ colectivo:
   admin:
     otp-ttl-minutes: 5
     otp-max-attempts: 3
+  archive:
+    directory: ${TRIP_ARCHIVE_DIR:./data/trip-archives}
   data-seeder:
     enabled: ${COLECTIVO_DATA_SEEDER_ENABLED:true}
   cors:
