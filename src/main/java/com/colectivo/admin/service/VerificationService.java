@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -25,6 +26,13 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class VerificationService {
+
+    private static final List<String> REQUIRED_DOCUMENT_FIELDS = List.of(
+            "platePhoto",
+            "vehiclePhoto",
+            "licFront",
+            "licBack"
+    );
 
     private final DriverVerificationRepository repository;
     private final UserRepository userRepository;
@@ -94,7 +102,9 @@ public class VerificationService {
         String decidedBy = getCurrentAdminPhone();
         Instant now = Instant.now();
 
-        driver.setVerificationStatus(DriverVerification.VerificationStatus.approved);
+        Map<String, DriverVerification.DocumentStatus> documentStatuses = allRequiredDocumentsApproved();
+        driver.setDocumentStatuses(documentStatuses);
+        driver.setVerificationStatus(computeVerificationStatus(documentStatuses, List.of()));
         driver.setLicenseStatus("active");
         driver.setVerificationDecidedBy(decidedBy);
         driver.setVerificationDecidedAt(now);
@@ -119,11 +129,15 @@ public class VerificationService {
 
         String decidedBy = getCurrentAdminPhone();
         Instant now = Instant.now();
+        List<String> approvedFields = dto.getApprovedFields() != null ? dto.getApprovedFields() : List.of();
+        List<String> rejectedFields = dto.getRejectedFields();
+        Map<String, DriverVerification.DocumentStatus> documentStatuses = statusesFromReview(approvedFields, rejectedFields);
 
-        driver.setVerificationStatus(DriverVerification.VerificationStatus.rejected);
+        driver.setDocumentStatuses(documentStatuses);
+        driver.setVerificationStatus(computeVerificationStatus(documentStatuses, rejectedFields));
         driver.setVerificationDecidedBy(decidedBy);
         driver.setVerificationDecidedAt(now);
-        driver.setRejectedFields(dto.getRejectedFields());
+        driver.setRejectedFields(rejectedFields);
         driver.setVerificationNote(dto.getNote());
         repository.save(driver);
 
@@ -281,7 +295,88 @@ public class VerificationService {
                 .verificationDecidedAt(d != null && d.getVerificationDecidedAt() != null
                         ? d.getVerificationDecidedAt().toString() : null)
                 .rejectedFields(d != null ? d.getRejectedFields() : List.of())
+                .documentStatuses(d != null ? stringifyStatuses(normalizeDocumentStatuses(d)) : Map.of())
                 .build();
+    }
+
+    private Map<String, DriverVerification.DocumentStatus> allRequiredDocumentsApproved() {
+        Map<String, DriverVerification.DocumentStatus> statuses = new LinkedHashMap<>();
+        REQUIRED_DOCUMENT_FIELDS.forEach(field -> statuses.put(field, DriverVerification.DocumentStatus.approved));
+        return statuses;
+    }
+
+    private Map<String, DriverVerification.DocumentStatus> statusesFromReview(
+            List<String> approvedFields,
+            List<String> rejectedFields
+    ) {
+        Set<String> approved = approvedFields != null ? new LinkedHashSet<>(approvedFields) : Set.of();
+        Set<String> rejected = rejectedFields != null ? new LinkedHashSet<>(rejectedFields) : Set.of();
+        Map<String, DriverVerification.DocumentStatus> statuses = new LinkedHashMap<>();
+
+        for (String field : REQUIRED_DOCUMENT_FIELDS) {
+            if (rejected.contains(field)) {
+                statuses.put(field, DriverVerification.DocumentStatus.rejected);
+            } else if (approved.contains(field)) {
+                statuses.put(field, DriverVerification.DocumentStatus.approved);
+            } else {
+                statuses.put(field, DriverVerification.DocumentStatus.pending);
+            }
+        }
+
+        return statuses;
+    }
+
+    private Map<String, DriverVerification.DocumentStatus> normalizeDocumentStatuses(DriverVerification driver) {
+        Map<String, DriverVerification.DocumentStatus> saved = driver.getDocumentStatuses();
+        List<String> rejectedFields = driver.getRejectedFields() != null ? driver.getRejectedFields() : List.of();
+        Map<String, DriverVerification.DocumentStatus> statuses = new LinkedHashMap<>();
+
+        for (String field : REQUIRED_DOCUMENT_FIELDS) {
+            DriverVerification.DocumentStatus status = saved != null ? saved.get(field) : null;
+            if (status == null) {
+                status = inferLegacyDocumentStatus(driver, rejectedFields, field);
+            }
+            statuses.put(field, status);
+        }
+
+        return statuses;
+    }
+
+    private DriverVerification.DocumentStatus inferLegacyDocumentStatus(
+            DriverVerification driver,
+            List<String> rejectedFields,
+            String field
+    ) {
+        if (rejectedFields.contains(field)) {
+            return DriverVerification.DocumentStatus.rejected;
+        }
+        if (driver.getVerificationStatus() == DriverVerification.VerificationStatus.approved) {
+            return DriverVerification.DocumentStatus.approved;
+        }
+        return DriverVerification.DocumentStatus.pending;
+    }
+
+    private Map<String, String> stringifyStatuses(Map<String, DriverVerification.DocumentStatus> statuses) {
+        Map<String, String> result = new LinkedHashMap<>();
+        statuses.forEach((field, status) -> result.put(field, status.name()));
+        return result;
+    }
+
+    private DriverVerification.VerificationStatus computeVerificationStatus(
+            Map<String, DriverVerification.DocumentStatus> documentStatuses,
+            List<String> rejectedFields
+    ) {
+        if (rejectedFields != null && !rejectedFields.isEmpty()) {
+            return DriverVerification.VerificationStatus.rejected;
+        }
+        if (documentStatuses.values().stream().anyMatch(status -> status == DriverVerification.DocumentStatus.rejected)) {
+            return DriverVerification.VerificationStatus.rejected;
+        }
+        boolean allApproved = REQUIRED_DOCUMENT_FIELDS.stream()
+                .allMatch(field -> documentStatuses.get(field) == DriverVerification.DocumentStatus.approved);
+        return allApproved
+                ? DriverVerification.VerificationStatus.approved
+                : DriverVerification.VerificationStatus.pending;
     }
 
     private String registeredAs(User user) {

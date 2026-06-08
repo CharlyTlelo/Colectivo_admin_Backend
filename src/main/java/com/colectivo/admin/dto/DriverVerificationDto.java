@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.util.List;
+import java.util.Map;
 
 @Data
 @Builder
@@ -47,4 +48,5 @@ public class DriverVerificationDto {
     private String verificationDecidedBy;
     private String verificationDecidedAt;
     private List<String> rejectedFields;
+    private Map<String, String> documentStatuses;
 }

@@ -10,6 +10,7 @@ import org.springframework.data.mongodb.core.mapping.Field;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 
 @Data
 @Builder
@@ -50,6 +51,7 @@ public class DriverVerification {
     private String platePhotoUrl;
     private String vehiclePhotoUrl;
     private String vehicleInteriorUrl;
+    private Map<String, DocumentStatus> documentStatuses;
 
     // License and verification state
     private String licenseStatus;
@@ -66,6 +68,10 @@ public class DriverVerification {
     private List<String> prevRejectedFields;
 
     public enum VerificationStatus {
+        pending, approved, rejected
+    }
+
+    public enum DocumentStatus {
         pending, approved, rejected
     }
 }
