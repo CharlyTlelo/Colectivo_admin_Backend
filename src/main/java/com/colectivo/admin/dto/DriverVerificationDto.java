@@ -43,7 +43,6 @@ public class DriverVerificationDto {
     private String licenseBackUrl;
     private String platePhotoUrl;
     private String vehiclePhotoUrl;
-    private String vehicleInteriorUrl;
     private String verificationNote;
     private String verificationDecidedBy;
     private String verificationDecidedAt;
