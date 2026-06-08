@@ -29,3 +29,15 @@ Este repo es **una de dos plataformas** que componen Colectivo. Comparten **visi
 **Cuándo NO tocar este backend:**
 - Lógica de transición cuando el conductor **reenvía** un doc rechazado → es **Carpool backend** (`DriverService.updateMe`), no este. Este solo lee el resultado.
 - Lógica de cómo se inicializa `documentStatuses` al registrar un driver → **Carpool backend** (`DriverService.register`).
+
+## Notificaciones cross-service (Admin → usuario)
+
+- El motor vive en **Carpool** (`mx.colectivo.api.service.NotificationService`, colección Mongo `notifications`). Admin y Carpool comparten la **misma base `colectivo`**.
+- En vez de endpoint HTTP, este backend **escribe directo** en `notifications`: `model/Notification.java` (mismo esquema que Carpool; `type` como String, p.ej. `"VERIFICATION"`), `repository/NotificationRepository.java` (solo escritura), `service/UserNotificationService.java` (`notifyVerificationApproved`/`notifyVerificationRejected`, tolerante a fallos, con deep-link). Wiring en `VerificationService.approve()`/`reject()`.
+- **Tradeoff**: solo entrega in-app; si Carpool agrega FCM, migrar a endpoint interno o listener sobre `notifications`.
+
+## Estructura git (importante)
+
+- El repo git real es la carpeta `backend/`. La raíz `Colectivo Admin/` **no** es repo (git resuelve a un repo padre con config rota). Trabajar/commitear **siempre dentro de `backend/`**.
+- Shell del usuario = PowerShell: usar `;` (no `&&`/`||`).
+- `target/` ya no se versiona (`.gitignore` agregado); no re-trackear build ni `hs_err_pid*.log`.

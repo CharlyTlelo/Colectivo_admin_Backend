@@ -50,6 +50,37 @@ bloque de docs es la fuente de verdad para que cualquier agente lo entienda.
   transición (deja en `pending` el reenviado, mantiene approved los demás).
   Este backend lee el resultado.
 
+## Notificaciones cross-service (Admin → usuario)
+
+- El motor de notificaciones vive en **Carpool**
+  (`mx.colectivo.api.service.NotificationService`, colección Mongo
+  `notifications`). Admin y Carpool comparten la **misma base `colectivo`**.
+- En vez de un endpoint HTTP interno, este backend **escribe directo** en la
+  colección compartida `notifications`:
+  - `model/Notification.java` — mapea `notifications` con el mismo esquema que
+    Carpool. `type` se guarda como String con el nombre del enum
+    `NotificationType` (p.ej. `"VERIFICATION"`) para que Carpool lo
+    deserialice de vuelta a su enum.
+  - `repository/NotificationRepository.java` — solo escritura desde Admin.
+  - `service/UserNotificationService.java` — `notifyVerificationApproved(...)`
+    y `notifyVerificationRejected(...)`; tolerante a fallos (`try-catch` +
+    `log.warn`), valida `userId`, e incluye deep-link en `data`.
+- Wiring: `VerificationService.approve()` y `reject()` disparan la
+  notificación `VERIFICATION` tras persistir la decisión.
+- **Tradeoff conocido**: la escritura directa solo entrega notificación
+  in-app. Si Carpool agrega push real (FCM), las notificaciones de Admin no
+  pasarían por ese canal → habría que migrar a un endpoint interno en Carpool
+  o a un listener sobre la colección `notifications`.
+
+## Estructura git (importante)
+
+- El repo git real es esta carpeta `backend/`. La carpeta raíz
+  `Colectivo Admin/` **no** es repo git (git resuelve hacia un repo padre con
+  config rota). Trabajar y commitear **siempre dentro de `backend/`**.
+- Shell del usuario = PowerShell: usar `;` como separador (no `&&`/`||`).
+- `target/` ya **no** se versiona (se agregó `.gitignore`); no volver a
+  trackear artefactos de build ni `hs_err_pid*.log`.
+
 ---
 
 ## Ecosistema Colectivo
