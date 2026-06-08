@@ -6,5 +6,5 @@ import org.springframework.data.mongodb.repository.MongoRepository;
 import java.util.List;
 
 public interface TripRouteRepository extends MongoRepository<TripRoute, String> {
-    List<TripRoute> findAllByOrderByAreaNameAscRouteDestinationAscFinalDestinationAsc();
+    List<TripRoute> findAllByOrderByOriginLocalityNameAscDestinationLocalityNameAscAreaNameAscRouteDestinationAsc();
 }

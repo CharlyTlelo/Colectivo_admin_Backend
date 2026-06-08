@@ -20,6 +20,8 @@ public class Trip {
     private String id;
 
     private String routeId;
+    private String localityOriginId;
+    private String localityDestinationId;
     private String driverId;
     private String origin;
     private String destination;
@@ -38,6 +40,7 @@ public class Trip {
     private String routeMonitorStatus;
     private String routeMonitorSummary;
     private String meetingPointDescription;
+    private String destinationDetail;
     private String finalDestinationDescription;
     private Instant createdAt;
 }

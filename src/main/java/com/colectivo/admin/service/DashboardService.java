@@ -580,8 +580,9 @@ public class DashboardService {
         if (trip.getRouteMonitorSummary() != null && !trip.getRouteMonitorSummary().isBlank()) {
             return base + " - " + trip.getRouteMonitorSummary();
         }
-        if (trip.getFinalDestinationDescription() != null && !trip.getFinalDestinationDescription().isBlank()) {
-            return base + " - final: " + trip.getFinalDestinationDescription();
+        String destinationDetail = fallback(trip.getDestinationDetail(), trip.getFinalDestinationDescription());
+        if (destinationDetail != null && !destinationDetail.isBlank()) {
+            return base + " - final: " + destinationDetail;
         }
         return base;
     }

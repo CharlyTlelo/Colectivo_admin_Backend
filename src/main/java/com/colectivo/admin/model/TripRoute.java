@@ -22,6 +22,14 @@ public class TripRoute {
     private String areaType;
     private String areaKey;
     private String areaName;
+    private String localityOriginId;
+    private String localityDestinationId;
+    private String originLocalityName;
+    private String originMunicipalityName;
+    private String originStateName;
+    private String destinationLocalityName;
+    private String destinationMunicipalityName;
+    private String destinationStateName;
     private String routeDestination;
     private String finalDestination;
     private String meetingPointLabel;

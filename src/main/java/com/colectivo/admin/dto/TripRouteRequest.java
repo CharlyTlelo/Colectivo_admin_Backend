@@ -4,6 +4,8 @@ import lombok.Data;
 
 @Data
 public class TripRouteRequest {
+    private String localityOriginId;
+    private String localityDestinationId;
     private String originArea;
     private String areaType;
     private String areaKey;

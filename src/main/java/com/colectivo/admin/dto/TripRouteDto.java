@@ -16,6 +16,14 @@ public class TripRouteDto {
     private String areaType;
     private String areaKey;
     private String areaName;
+    private String localityOriginId;
+    private String localityDestinationId;
+    private String originLocalityName;
+    private String originMunicipalityName;
+    private String originStateName;
+    private String destinationLocalityName;
+    private String destinationMunicipalityName;
+    private String destinationStateName;
     private String routeDestination;
     private String finalDestination;
     private String meetingPointLabel;
@@ -36,6 +44,14 @@ public class TripRouteDto {
                 .areaType(route.getAreaType())
                 .areaKey(route.getAreaKey())
                 .areaName(route.getAreaName())
+                .localityOriginId(route.getLocalityOriginId())
+                .localityDestinationId(route.getLocalityDestinationId())
+                .originLocalityName(route.getOriginLocalityName())
+                .originMunicipalityName(route.getOriginMunicipalityName())
+                .originStateName(route.getOriginStateName())
+                .destinationLocalityName(route.getDestinationLocalityName())
+                .destinationMunicipalityName(route.getDestinationMunicipalityName())
+                .destinationStateName(route.getDestinationStateName())
                 .routeDestination(route.getRouteDestination())
                 .finalDestination(route.getFinalDestination())
                 .meetingPointLabel(route.getMeetingPointLabel())
