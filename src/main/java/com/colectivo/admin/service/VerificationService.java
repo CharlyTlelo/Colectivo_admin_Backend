@@ -44,6 +44,7 @@ public class VerificationService {
 
     private final DriverVerificationRepository repository;
     private final UserRepository userRepository;
+    private final UserNotificationService userNotificationService;
 
     public QueueStatsDto getQueue() {
         List<User> users = userRepository.findAll();
@@ -121,6 +122,7 @@ public class VerificationService {
         repository.save(driver);
 
         log.info("Driver {} approved by {}", id, decidedBy);
+        userNotificationService.notifyVerificationApproved(driver.getUserId(), driver.getId());
         User user = driver.getUserId() != null
                 ? userRepository.findById(driver.getUserId()).orElse(null)
                 : null;
@@ -150,6 +152,8 @@ public class VerificationService {
         repository.save(driver);
 
         log.info("Driver {} rejected by {} for fields: {}", id, decidedBy, dto.getRejectedFields());
+        userNotificationService.notifyVerificationRejected(driver.getUserId(), driver.getId(),
+                rejectedFields, dto.getNote());
         User user = driver.getUserId() != null
                 ? userRepository.findById(driver.getUserId()).orElse(null)
                 : null;
