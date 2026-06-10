@@ -145,6 +145,11 @@ public class GeographicCatalogController {
         return catalogService.listActiveLocalityOptions(stateId, municipalityId);
     }
 
+    @GetMapping("/api/v1/admin/catalogs/travel-time")
+    public List<RouteTravelTimeResponse> listStoredRouteTravelTimes() {
+        return catalogService.listStoredRouteTravelTimes();
+    }
+
     @PostMapping("/api/v1/admin/catalogs/travel-time/calculate")
     public RouteTravelTimeResponse calculateRouteTravelTime(@Valid @RequestBody RouteTravelTimeRequest request) {
         return catalogService.calculateRouteTravelTime(

@@ -39,7 +39,10 @@ public class GoogleRoutesService {
         Map<String, Object> body = Map.of(
                 "origin", Map.of("address", originAddress),
                 "destination", Map.of("address", destinationAddress),
-                "travelMode", "DRIVE"
+                "travelMode", "DRIVE",
+                "routingPreference", "TRAFFIC_AWARE",
+                "languageCode", "es-MX",
+                "regionCode", "MX"
         );
 
         ComputeRoutesResponse response;

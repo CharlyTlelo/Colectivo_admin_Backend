@@ -17,10 +17,12 @@ import com.colectivo.admin.model.Country;
 import com.colectivo.admin.model.GeoState;
 import com.colectivo.admin.model.Locality;
 import com.colectivo.admin.model.Municipality;
+import com.colectivo.admin.model.RouteTravelTime;
 import com.colectivo.admin.repository.CountryRepository;
 import com.colectivo.admin.repository.GeoStateRepository;
 import com.colectivo.admin.repository.LocalityRepository;
 import com.colectivo.admin.repository.MunicipalityRepository;
+import com.colectivo.admin.repository.RouteTravelTimeRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -42,6 +44,7 @@ public class GeographicCatalogService {
     private final GeoStateRepository stateRepository;
     private final MunicipalityRepository municipalityRepository;
     private final LocalityRepository localityRepository;
+    private final RouteTravelTimeRepository routeTravelTimeRepository;
     private final GoogleRoutesService googleRoutesService;
 
     public List<CountryResponse> listCountries(boolean activeOnly) {
@@ -266,14 +269,63 @@ public class GeographicCatalogService {
                 destinationContext.address()
         );
 
+        double distanceKm = Math.round(route.distanceMeters() / 100.0) / 10.0;
+        RouteTravelTime saved = saveRouteTravelTime(
+                origin.getId(), destination.getId(),
+                originContext.label(), destinationContext.label(),
+                route.minutes(), distanceKm
+        );
+
         return RouteTravelTimeResponse.builder()
                 .originLocalityId(origin.getId())
                 .destinationLocalityId(destination.getId())
                 .originLabel(originContext.label())
                 .destinationLabel(destinationContext.label())
                 .estimatedTravelMinutes(route.minutes())
-                .distanceKm(Math.round(route.distanceMeters() / 100.0) / 10.0)
+                .distanceKm(distanceKm)
+                .calculatedAt(saved.getCalculatedAt())
                 .build();
+    }
+
+    /** Guarda (o actualiza) el calculo para el par origen-destino; lo usaremos despues para tarifas/planeacion. */
+    private RouteTravelTime saveRouteTravelTime(
+            String originLocalityId,
+            String destinationLocalityId,
+            String originLabel,
+            String destinationLabel,
+            int minutes,
+            double distanceKm
+    ) {
+        Instant now = Instant.now();
+        RouteTravelTime record = routeTravelTimeRepository
+                .findByOriginLocalityIdAndDestinationLocalityId(originLocalityId, destinationLocalityId)
+                .orElseGet(() -> RouteTravelTime.builder()
+                        .originLocalityId(originLocalityId)
+                        .destinationLocalityId(destinationLocalityId)
+                        .createdAt(now)
+                        .build());
+        record.setOriginLabel(originLabel);
+        record.setDestinationLabel(destinationLabel);
+        record.setEstimatedTravelMinutes(minutes);
+        record.setDistanceKm(distanceKm);
+        record.setCalculatedAt(now);
+        record.setUpdatedAt(now);
+        return routeTravelTimeRepository.save(record);
+    }
+
+    /** Lista todos los tiempos de ruta guardados (mas recientes primero). */
+    public List<RouteTravelTimeResponse> listStoredRouteTravelTimes() {
+        return routeTravelTimeRepository.findAllByOrderByCalculatedAtDesc().stream()
+                .map(record -> RouteTravelTimeResponse.builder()
+                        .originLocalityId(record.getOriginLocalityId())
+                        .destinationLocalityId(record.getDestinationLocalityId())
+                        .originLabel(record.getOriginLabel())
+                        .destinationLabel(record.getDestinationLabel())
+                        .estimatedTravelMinutes(record.getEstimatedTravelMinutes())
+                        .distanceKm(record.getDistanceKm())
+                        .calculatedAt(record.getCalculatedAt())
+                        .build())
+                .toList();
     }
 
     public RouteTravelTimeBatchResponse calculateRouteTravelTimeBatch(
@@ -346,7 +398,7 @@ public class GeographicCatalogService {
         GeoState state = findState(municipality.getStateId());
         Country country = findCountry(state.getCountryId());
 
-        String origin = String.join(", ", municipality.getName(), state.getName(), country.getName());
+        String origin = String.join(", ", municipality.getName(), state.getName(), countryNameForGeocoding(country));
         int minutes = googleRoutesService.drivingMinutes(origin, context.address());
 
         Instant now = Instant.now();
@@ -424,7 +476,27 @@ public class GeographicCatalogService {
             GeoState state,
             Country country
     ) {
-        return String.join(", ", locality.getName(), municipality.getName(), state.getName(), country.getName());
+        return String.join(", ",
+                locality.getName(),
+                municipality.getName(),
+                state.getName(),
+                countryNameForGeocoding(country)
+        );
+    }
+
+    /**
+     * Google Routes geocodes "Mexico" (sin acento) de forma ambigua y puede colapsar
+     * origen y destino al mismo punto (~0.5 km). Para MX usamos siempre "México".
+     */
+    private String countryNameForGeocoding(Country country) {
+        if (country.getCode() != null && "MX".equalsIgnoreCase(country.getCode().trim())) {
+            return "México";
+        }
+        String name = country.getName() == null ? "" : country.getName().trim();
+        if (name.equalsIgnoreCase("Mexico") || name.equalsIgnoreCase("MEXICO")) {
+            return "México";
+        }
+        return name.isEmpty() ? "México" : name;
     }
 
     private record LocalityContext(String label, String address) {

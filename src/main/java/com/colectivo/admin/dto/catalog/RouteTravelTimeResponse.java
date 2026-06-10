@@ -2,6 +2,8 @@ package com.colectivo.admin.dto.catalog;
 
 import lombok.Builder;
 
+import java.time.Instant;
+
 @Builder
 public record RouteTravelTimeResponse(
         String originLocalityId,
@@ -9,6 +11,7 @@ public record RouteTravelTimeResponse(
         String originLabel,
         String destinationLabel,
         int estimatedTravelMinutes,
-        double distanceKm
+        double distanceKm,
+        Instant calculatedAt
 ) {
 }
