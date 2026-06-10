@@ -405,13 +405,22 @@ public class GeographicCatalogService {
                 municipality.getName(), state.getName(), countryCode(country));
         GoogleGeocodingService.GeoPoint destinationPoint = resolveLocalityCoordinates(locality);
 
+        // IDA: municipio/alcaldia → localidad.
         int minutes = googleRoutesService.computeDrivingRoute(
                 originPoint.lat(), originPoint.lng(),
                 destinationPoint.lat(), destinationPoint.lng()
         ).minutes();
 
+        // VUELTA: localidad → municipio/alcaldia. El tiempo difiere por sentido
+        // (tráfico/topología vial), así que se calcula como ruta independiente.
+        int returnMinutes = googleRoutesService.computeDrivingRoute(
+                destinationPoint.lat(), destinationPoint.lng(),
+                originPoint.lat(), originPoint.lng()
+        ).minutes();
+
         Instant now = Instant.now();
         locality.setEstimatedTravelMinutes(minutes);
+        locality.setReturnTravelMinutes(returnMinutes);
         locality.setTravelTimeCalculatedAt(now);
         locality.setUpdatedAt(now);
         return LocalityResponse.from(localityRepository.save(locality));

@@ -25,8 +25,10 @@ public class Locality {
     private LocalityType type;
     private boolean active;
 
-    /** Tiempo estimado en auto desde el municipio/alcaldia hasta la localidad (Google Maps). */
+    /** Tiempo estimado en auto IDA: municipio/alcaldia → localidad (Google Maps). */
     private Integer estimatedTravelMinutes;
+    /** Tiempo estimado en auto VUELTA: localidad → municipio/alcaldia (Google Maps). */
+    private Integer returnTravelMinutes;
     private Instant travelTimeCalculatedAt;
 
     /** Coordenadas geocodificadas (cache) para calculos de ruta confiables. */
