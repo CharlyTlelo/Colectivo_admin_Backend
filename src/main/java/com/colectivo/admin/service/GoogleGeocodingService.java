@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import java.net.URI;
 import java.util.List;
 
 /**
@@ -65,14 +66,17 @@ public class GoogleGeocodingService {
     }
 
     private GeoPoint tryGeocode(String address, String components) {
-        String uri = UriComponentsBuilder.fromUriString(GEOCODE_URL)
+        // build() + encode() + toUri(): pasamos un java.net.URI ya codificado para
+        // que RestClient no lo re-codifique (doble encoding corrompe '|' y acentos).
+        URI uri = UriComponentsBuilder.fromUriString(GEOCODE_URL)
                 .queryParam("address", address)
                 .queryParam("components", components)
                 .queryParam("region", "mx")
                 .queryParam("language", "es")
                 .queryParam("key", apiKey)
+                .build()
                 .encode()
-                .toUriString();
+                .toUri();
 
         GeocodeResponse response;
         try {
