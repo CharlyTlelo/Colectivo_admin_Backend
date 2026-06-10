@@ -2,10 +2,12 @@ package com.colectivo.admin.service;
 
 import com.colectivo.admin.dto.catalog.CountryRequest;
 import com.colectivo.admin.dto.catalog.CountryResponse;
+import com.colectivo.admin.dto.catalog.LocalityOptionResponse;
 import com.colectivo.admin.dto.catalog.LocalityRequest;
 import com.colectivo.admin.dto.catalog.LocalityResponse;
 import com.colectivo.admin.dto.catalog.MunicipalityRequest;
 import com.colectivo.admin.dto.catalog.MunicipalityResponse;
+import com.colectivo.admin.dto.catalog.RouteTravelTimeResponse;
 import com.colectivo.admin.dto.catalog.StateRequest;
 import com.colectivo.admin.dto.catalog.StateResponse;
 import com.colectivo.admin.exception.ConflictException;
@@ -22,6 +24,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 
@@ -210,20 +214,75 @@ public class GeographicCatalogService {
         return LocalityResponse.from(localityRepository.save(locality));
     }
 
+    public List<LocalityOptionResponse> listActiveLocalityOptions(String stateId, String municipalityId) {
+        required(stateId, "stateId");
+        GeoState state = findState(stateId);
+        Country country = findCountry(state.getCountryId());
+
+        List<Municipality> municipalities;
+        if (municipalityId != null && !municipalityId.isBlank()) {
+            Municipality municipality = findMunicipality(municipalityId);
+            if (!state.getId().equals(municipality.getStateId())) {
+                throw new IllegalArgumentException("El municipio no pertenece a la entidad seleccionada");
+            }
+            municipalities = List.of(municipality);
+        } else {
+            municipalities = municipalityRepository.findByStateIdAndActiveTrueOrderByNameAsc(stateId);
+        }
+
+        List<LocalityOptionResponse> options = new ArrayList<>();
+        for (Municipality municipality : municipalities) {
+            if (!municipality.isActive()) {
+                continue;
+            }
+            for (Locality locality : localityRepository.findByMunicipalityIdAndActiveTrueOrderByNameAsc(municipality.getId())) {
+                options.add(toLocalityOption(locality, municipality, state, country));
+            }
+        }
+
+        options.sort(Comparator.comparing(LocalityOptionResponse::label, String.CASE_INSENSITIVE_ORDER));
+        return options;
+    }
+
+    public RouteTravelTimeResponse calculateRouteTravelTime(String originLocalityId, String destinationLocalityId) {
+        if (originLocalityId.equals(destinationLocalityId)) {
+            throw new IllegalArgumentException("El origen y el destino deben ser localidades distintas");
+        }
+
+        Locality origin = findActiveLocality(originLocalityId);
+        Locality destination = findActiveLocality(destinationLocalityId);
+
+        LocalityContext originContext = resolveLocalityContext(origin);
+        LocalityContext destinationContext = resolveLocalityContext(destination);
+
+        GoogleRoutesService.DrivingRouteResult route = googleRoutesService.computeDrivingRoute(
+                originContext.address(),
+                destinationContext.address()
+        );
+
+        return RouteTravelTimeResponse.builder()
+                .originLocalityId(origin.getId())
+                .destinationLocalityId(destination.getId())
+                .originLabel(originContext.label())
+                .destinationLabel(destinationContext.label())
+                .estimatedTravelMinutes(route.minutes())
+                .distanceKm(Math.round(route.distanceMeters() / 100.0) / 10.0)
+                .build();
+    }
+
     /**
      * Calcula (o recalcula manualmente) el tiempo estimado de manejo desde el
      * municipio/alcaldia hasta la localidad usando Google Maps y lo persiste.
      */
     public LocalityResponse calculateLocalityTravelTime(String id) {
         Locality locality = findLocality(id);
+        LocalityContext context = resolveLocalityContext(locality);
         Municipality municipality = findMunicipality(locality.getMunicipalityId());
         GeoState state = findState(municipality.getStateId());
         Country country = findCountry(state.getCountryId());
 
         String origin = String.join(", ", municipality.getName(), state.getName(), country.getName());
-        String destination = String.join(", ", locality.getName(), municipality.getName(), state.getName(), country.getName());
-
-        int minutes = googleRoutesService.drivingMinutes(origin, destination);
+        int minutes = googleRoutesService.drivingMinutes(origin, context.address());
 
         Instant now = Instant.now();
         locality.setEstimatedTravelMinutes(minutes);
@@ -257,6 +316,53 @@ public class GeographicCatalogService {
     private Locality findLocality(String id) {
         return localityRepository.findById(required(id, "localityId"))
                 .orElseThrow(() -> new NotFoundException("Locality not found: " + id));
+    }
+
+    private Locality findActiveLocality(String id) {
+        Locality locality = findLocality(id);
+        if (!locality.isActive()) {
+            throw new IllegalArgumentException("La localidad no esta activa: " + locality.getName());
+        }
+        return locality;
+    }
+
+    private LocalityContext resolveLocalityContext(Locality locality) {
+        Municipality municipality = findMunicipality(locality.getMunicipalityId());
+        GeoState state = findState(municipality.getStateId());
+        Country country = findCountry(state.getCountryId());
+        return new LocalityContext(
+                toLocalityOption(locality, municipality, state, country).label(),
+                buildLocalityAddress(locality, municipality, state, country)
+        );
+    }
+
+    private LocalityOptionResponse toLocalityOption(
+            Locality locality,
+            Municipality municipality,
+            GeoState state,
+            Country country
+    ) {
+        String label = String.join(" · ", locality.getName(), municipality.getName(), state.getName());
+        return LocalityOptionResponse.builder()
+                .id(locality.getId())
+                .name(locality.getName())
+                .municipalityName(municipality.getName())
+                .stateName(state.getName())
+                .type(locality.getType())
+                .label(label)
+                .build();
+    }
+
+    private String buildLocalityAddress(
+            Locality locality,
+            Municipality municipality,
+            GeoState state,
+            Country country
+    ) {
+        return String.join(", ", locality.getName(), municipality.getName(), state.getName(), country.getName());
+    }
+
+    private record LocalityContext(String label, String address) {
     }
 
     private void ensureStateUnique(String countryId, String name, String code, String currentId) {

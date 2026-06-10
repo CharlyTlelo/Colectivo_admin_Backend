@@ -27,13 +27,11 @@ public class GoogleRoutesService {
         this.apiKey = apiKey;
     }
 
-    /**
-     * Calcula los minutos de manejo entre dos direcciones.
-     *
-     * @return minutos estimados (redondeados hacia arriba)
-     * @throws IllegalStateException si la API key falta, la llamada falla o no hay ruta
-     */
     public int drivingMinutes(String originAddress, String destinationAddress) {
+        return computeDrivingRoute(originAddress, destinationAddress).minutes();
+    }
+
+    public DrivingRouteResult computeDrivingRoute(String originAddress, String destinationAddress) {
         if (apiKey == null || apiKey.isBlank()) {
             throw new IllegalStateException("Google Maps no esta configurado (falta GOOGLE_MAPS_API_KEY)");
         }
@@ -69,16 +67,20 @@ public class GoogleRoutesService {
         }
 
         long seconds = parseDurationSeconds(response.routes().get(0).duration());
-        return (int) Math.max(1, Math.ceil(seconds / 60.0));
+        int minutes = (int) Math.max(1, Math.ceil(seconds / 60.0));
+        Long distanceMeters = response.routes().get(0).distanceMeters();
+        return new DrivingRouteResult(minutes, distanceMeters != null ? distanceMeters : 0L);
     }
 
-    /** El API devuelve duraciones como "780s". */
     private long parseDurationSeconds(String duration) {
         try {
             return Long.parseLong(duration.replace("s", "").trim());
         } catch (NumberFormatException ex) {
             throw new IllegalStateException("Respuesta de Google Maps invalida: " + duration);
         }
+    }
+
+    public record DrivingRouteResult(int minutes, long distanceMeters) {
     }
 
     record Route(String duration, Long distanceMeters) {

@@ -2,10 +2,13 @@ package com.colectivo.admin.controller;
 
 import com.colectivo.admin.dto.catalog.CountryRequest;
 import com.colectivo.admin.dto.catalog.CountryResponse;
+import com.colectivo.admin.dto.catalog.LocalityOptionResponse;
 import com.colectivo.admin.dto.catalog.LocalityRequest;
 import com.colectivo.admin.dto.catalog.LocalityResponse;
 import com.colectivo.admin.dto.catalog.MunicipalityRequest;
 import com.colectivo.admin.dto.catalog.MunicipalityResponse;
+import com.colectivo.admin.dto.catalog.RouteTravelTimeRequest;
+import com.colectivo.admin.dto.catalog.RouteTravelTimeResponse;
 import com.colectivo.admin.dto.catalog.StateRequest;
 import com.colectivo.admin.dto.catalog.StateResponse;
 import com.colectivo.admin.service.GeographicCatalogService;
@@ -130,6 +133,22 @@ public class GeographicCatalogController {
     @PostMapping("/api/v1/admin/catalogs/localities/{id}/travel-time")
     public LocalityResponse calculateLocalityTravelTime(@PathVariable String id) {
         return catalogService.calculateLocalityTravelTime(id);
+    }
+
+    @GetMapping("/api/v1/admin/catalogs/localities/active-options")
+    public List<LocalityOptionResponse> activeLocalityOptions(
+            @RequestParam String stateId,
+            @RequestParam(required = false) String municipalityId
+    ) {
+        return catalogService.listActiveLocalityOptions(stateId, municipalityId);
+    }
+
+    @PostMapping("/api/v1/admin/catalogs/travel-time/calculate")
+    public RouteTravelTimeResponse calculateRouteTravelTime(@Valid @RequestBody RouteTravelTimeRequest request) {
+        return catalogService.calculateRouteTravelTime(
+                request.getOriginLocalityId(),
+                request.getDestinationLocalityId()
+        );
     }
 
     @PatchMapping("/api/v1/admin/catalogs/localities/{id}/deactivate")
