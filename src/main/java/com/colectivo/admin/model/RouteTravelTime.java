@@ -31,8 +31,13 @@ public class RouteTravelTime {
     private String originLabel;
     private String destinationLabel;
 
+    /** IDA: origen → destino. */
     private int estimatedTravelMinutes;
     private double distanceKm;
+
+    /** VUELTA: destino → origen (cálculo adicional del mismo botón). */
+    private int returnTravelMinutes;
+    private double returnDistanceKm;
 
     private Instant calculatedAt;
     private Instant createdAt;

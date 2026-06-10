@@ -12,6 +12,8 @@ public record RouteTravelTimeResponse(
         String destinationLabel,
         int estimatedTravelMinutes,
         double distanceKm,
+        int returnTravelMinutes,
+        double returnDistanceKm,
         Instant calculatedAt
 ) {
 }

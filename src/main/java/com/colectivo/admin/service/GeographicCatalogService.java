@@ -268,17 +268,33 @@ public class GeographicCatalogService {
         GoogleGeocodingService.GeoPoint originPoint = resolveLocalityCoordinates(origin);
         GoogleGeocodingService.GeoPoint destinationPoint = resolveLocalityCoordinates(destination);
 
+        // IDA: origen → destino (cálculo existente; no se modifica).
         GoogleRoutesService.DrivingRouteResult route = googleRoutesService.computeDrivingRoute(
                 originPoint.lat(), originPoint.lng(),
                 destinationPoint.lat(), destinationPoint.lng()
         );
+        // VUELTA: destino → origen (cálculo adicional del mismo botón).
+        GoogleRoutesService.DrivingRouteResult routeBack = googleRoutesService.computeDrivingRoute(
+                destinationPoint.lat(), destinationPoint.lng(),
+                originPoint.lat(), originPoint.lng()
+        );
 
         double distanceKm = Math.round(route.distanceMeters() / 100.0) / 10.0;
+        double returnDistanceKm = Math.round(routeBack.distanceMeters() / 100.0) / 10.0;
+
         RouteTravelTime saved = saveRouteTravelTime(
                 origin.getId(), destination.getId(),
                 originContext.label(), destinationContext.label(),
-                route.minutes(), distanceKm
+                route.minutes(), distanceKm,
+                routeBack.minutes(), returnDistanceKm
         );
+
+        // Reflejar en AMBAS localidades. Para cada una, ida = salir de ella,
+        // vuelta = regresar a ella:
+        //  - origen:  ida = origen→destino,  vuelta = destino→origen
+        //  - destino: ida = destino→origen,  vuelta = origen→destino
+        applyLocalityRouteTimes(origin, route.minutes(), routeBack.minutes(), saved.getCalculatedAt());
+        applyLocalityRouteTimes(destination, routeBack.minutes(), route.minutes(), saved.getCalculatedAt());
 
         return RouteTravelTimeResponse.builder()
                 .originLocalityId(origin.getId())
@@ -287,8 +303,19 @@ public class GeographicCatalogService {
                 .destinationLabel(destinationContext.label())
                 .estimatedTravelMinutes(route.minutes())
                 .distanceKm(distanceKm)
+                .returnTravelMinutes(routeBack.minutes())
+                .returnDistanceKm(returnDistanceKm)
                 .calculatedAt(saved.getCalculatedAt())
                 .build();
+    }
+
+    /** Persiste los tiempos ida/vuelta en una localidad (ida = salida, vuelta = regreso). */
+    private void applyLocalityRouteTimes(Locality locality, int outboundMinutes, int returnMinutes, Instant now) {
+        locality.setEstimatedTravelMinutes(outboundMinutes);
+        locality.setReturnTravelMinutes(returnMinutes);
+        locality.setTravelTimeCalculatedAt(now);
+        locality.setUpdatedAt(now);
+        localityRepository.save(locality);
     }
 
     /** Guarda (o actualiza) el calculo para el par origen-destino; lo usaremos despues para tarifas/planeacion. */
@@ -298,7 +325,9 @@ public class GeographicCatalogService {
             String originLabel,
             String destinationLabel,
             int minutes,
-            double distanceKm
+            double distanceKm,
+            int returnMinutes,
+            double returnDistanceKm
     ) {
         Instant now = Instant.now();
         RouteTravelTime record = routeTravelTimeRepository
@@ -312,6 +341,8 @@ public class GeographicCatalogService {
         record.setDestinationLabel(destinationLabel);
         record.setEstimatedTravelMinutes(minutes);
         record.setDistanceKm(distanceKm);
+        record.setReturnTravelMinutes(returnMinutes);
+        record.setReturnDistanceKm(returnDistanceKm);
         record.setCalculatedAt(now);
         record.setUpdatedAt(now);
         return routeTravelTimeRepository.save(record);
@@ -327,6 +358,8 @@ public class GeographicCatalogService {
                         .destinationLabel(record.getDestinationLabel())
                         .estimatedTravelMinutes(record.getEstimatedTravelMinutes())
                         .distanceKm(record.getDistanceKm())
+                        .returnTravelMinutes(record.getReturnTravelMinutes())
+                        .returnDistanceKm(record.getReturnDistanceKm())
                         .calculatedAt(record.getCalculatedAt())
                         .build())
                 .toList();
