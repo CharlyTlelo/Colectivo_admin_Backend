@@ -29,7 +29,9 @@ public class Trip {
     private double pricePerSeat;
     private int capacity;
     private int takenSeats;
-    private String status;          // published | full | in_progress | completed | cancelled
+    private String status;          // published | boarding | in_progress | done | closed | cancelled
+    /** Motivo del cierre anticipado en ruta (in_progress -> closed), declarado por el conductor en Carpool. */
+    private String closeReason;
     private double meetingPointLat;
     private double meetingPointLng;
     private String meetingPointLabel;

@@ -6,6 +6,7 @@ import java.util.List;
 public record TripDetailDto(
         String id,
         String status,
+        String closeReason,
         String driverId,
         String driverName,
         Instant departureTime,
@@ -30,6 +31,8 @@ public record TripDetailDto(
             String status,
             boolean fineApplied,
             Instant createdAt,
+            Boolean arrivedAtDestination,
+            Instant arrivalReportedAt,
             TripSnapshotDto snapshot
     ) {}
 

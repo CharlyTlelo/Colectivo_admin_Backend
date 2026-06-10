@@ -88,6 +88,8 @@ public class TripMonitorService {
                             b.getStatus(),
                             b.isFineApplied(),
                             b.getCreatedAt(),
+                            b.getArrivedAtDestination(),
+                            b.getArrivalReportedAt(),
                             snapshotDto(b.getTripSnapshot())
                     );
                 })
@@ -96,6 +98,7 @@ public class TripMonitorService {
         return new TripDetailDto(
                 trip.getId(),
                 trip.getStatus(),
+                trip.getCloseReason(),
                 trip.getDriverId(),
                 driver != null ? driver.getName() : null,
                 trip.getDepartureTime(),

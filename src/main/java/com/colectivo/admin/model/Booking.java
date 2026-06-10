@@ -25,5 +25,8 @@ public class Booking {
     private String status;      // confirmed | cancelled | no_show
     private boolean fineApplied;
     private Instant createdAt;
+    /** Reporte del pasajero (Carpool): true llegó a su destino, false no llegó, null sin responder. */
+    private Boolean arrivedAtDestination;
+    private Instant arrivalReportedAt;
     private TripSnapshot tripSnapshot;
 }

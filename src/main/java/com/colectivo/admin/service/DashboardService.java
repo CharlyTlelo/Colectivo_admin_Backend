@@ -632,6 +632,7 @@ public class DashboardService {
         if ("long_route".equals(normalizeStatus(trip.getRouteMonitorStatus()))) return "amber";
         if (trip.getCapacity() > 0 && trip.getTakenSeats() > trip.getCapacity()) return "danger";
         if (hasStatus(trip, "cancelled")) return "danger";
+        if (hasStatus(trip, "closed")) return "amber";
         if (hasStatus(trip, "boarding", "in_progress")) return "blue";
         if (hasStatus(trip, "published")) return "green";
         return "neutral";
