@@ -25,9 +25,16 @@ public class Locality {
     private LocalityType type;
     private boolean active;
 
-    /** Tiempo estimado en auto IDA: municipio/alcaldia → localidad (Google Maps). */
+    /**
+     * Tiempo IDA mostrado en Admin: municipio→localidad (recalc individual) o
+     * salida desde esta localidad hacia el destino del último par guardado (batch).
+     */
     private Integer estimatedTravelMinutes;
-    /** Tiempo estimado en auto VUELTA: localidad → municipio/alcaldia (Google Maps). */
+    /**
+     * Tiempo VUELTA mostrado en Admin: localidad→municipio (recalc individual) o
+     * regreso hacia esta localidad desde el origen del último par guardado (batch).
+     * Carpool consulta route_travel_times por dirección, no estos campos.
+     */
     private Integer returnTravelMinutes;
     private Instant travelTimeCalculatedAt;
 

@@ -8,6 +8,7 @@ import com.colectivo.admin.dto.catalog.LocalityResponse;
 import com.colectivo.admin.dto.catalog.MunicipalityRequest;
 import com.colectivo.admin.dto.catalog.MunicipalityResponse;
 import com.colectivo.admin.dto.catalog.RouteTravelTimeBatchResponse;
+import com.colectivo.admin.dto.catalog.RouteTravelTimeEstimateResponse;
 import com.colectivo.admin.dto.catalog.RouteTravelTimeResponse;
 import com.colectivo.admin.dto.catalog.RouteTravelTimeSaveRequest;
 import com.colectivo.admin.dto.catalog.StateRequest;
@@ -33,6 +34,7 @@ import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.Set;
 
 @Service
@@ -383,6 +385,63 @@ public class GeographicCatalogService {
         record.setCalculatedAt(now);
         record.setUpdatedAt(now);
         return routeTravelTimeRepository.save(record);
+    }
+
+    private static final String TRAVEL_TIME_UNAVAILABLE =
+            "Tiempo aproximado no disponible para esta ruta.";
+
+    /**
+     * Tiempo de manejo para la dirección exacta solicitada (origen → destino).
+     * Busca en route_travel_times: si el par guardado coincide con la consulta
+     * devuelve IDA; si existe el par inverso devuelve VUELTA (destino → origen
+     * del registro canónico). No intercambia IDA por VUELTA sin validar el registro.
+     */
+    public RouteTravelTimeEstimateResponse getEstimatedTravelTimeByRoute(
+            String originLocalityId,
+            String destinationLocalityId
+    ) {
+        if (originLocalityId == null || destinationLocalityId == null
+                || originLocalityId.isBlank() || destinationLocalityId.isBlank()) {
+            throw new IllegalArgumentException("originLocalityId y destinationLocalityId son obligatorios");
+        }
+        if (originLocalityId.equals(destinationLocalityId)) {
+            throw new IllegalArgumentException("El origen y el destino deben ser localidades distintas");
+        }
+
+        Optional<RouteTravelTime> direct = routeTravelTimeRepository
+                .findByOriginLocalityIdAndDestinationLocalityId(originLocalityId, destinationLocalityId);
+        if (direct.isPresent()) {
+            RouteTravelTime record = direct.get();
+            return RouteTravelTimeEstimateResponse.builder()
+                    .originLocalityId(originLocalityId)
+                    .destinationLocalityId(destinationLocalityId)
+                    .available(true)
+                    .estimatedTravelMinutes(record.getEstimatedTravelMinutes())
+                    .distanceKm(record.getDistanceKm())
+                    .build();
+        }
+
+        Optional<RouteTravelTime> reverse = routeTravelTimeRepository
+                .findByOriginLocalityIdAndDestinationLocalityId(destinationLocalityId, originLocalityId);
+        if (reverse.isPresent()) {
+            RouteTravelTime record = reverse.get();
+            return RouteTravelTimeEstimateResponse.builder()
+                    .originLocalityId(originLocalityId)
+                    .destinationLocalityId(destinationLocalityId)
+                    .available(true)
+                    .estimatedTravelMinutes(record.getReturnTravelMinutes())
+                    .distanceKm(record.getReturnDistanceKm())
+                    .build();
+        }
+
+        return RouteTravelTimeEstimateResponse.builder()
+                .originLocalityId(originLocalityId)
+                .destinationLocalityId(destinationLocalityId)
+                .available(false)
+                .estimatedTravelMinutes(null)
+                .distanceKm(null)
+                .message(TRAVEL_TIME_UNAVAILABLE)
+                .build();
     }
 
     /** Lista todos los tiempos de ruta guardados (mas recientes primero). */

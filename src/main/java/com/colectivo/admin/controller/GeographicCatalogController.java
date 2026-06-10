@@ -9,6 +9,7 @@ import com.colectivo.admin.dto.catalog.MunicipalityRequest;
 import com.colectivo.admin.dto.catalog.MunicipalityResponse;
 import com.colectivo.admin.dto.catalog.RouteTravelTimeBatchRequest;
 import com.colectivo.admin.dto.catalog.RouteTravelTimeBatchResponse;
+import com.colectivo.admin.dto.catalog.RouteTravelTimeEstimateResponse;
 import com.colectivo.admin.dto.catalog.RouteTravelTimeRequest;
 import com.colectivo.admin.dto.catalog.RouteTravelTimeResponse;
 import com.colectivo.admin.dto.catalog.RouteTravelTimeSaveRequest;
@@ -53,6 +54,15 @@ public class GeographicCatalogController {
     @GetMapping("/api/v1/catalogs/localities")
     public List<LocalityResponse> publicLocalities(@RequestParam String municipalityId) {
         return catalogService.listLocalities(municipalityId, true);
+    }
+
+    /** Tiempo aproximado para la dirección exacta origen → destino (consumo Carpool). */
+    @GetMapping("/api/v1/catalogs/travel-time/estimate")
+    public RouteTravelTimeEstimateResponse estimateTravelTime(
+            @RequestParam String originLocalityId,
+            @RequestParam String destinationLocalityId
+    ) {
+        return catalogService.getEstimatedTravelTimeByRoute(originLocalityId, destinationLocalityId);
     }
 
     @GetMapping("/api/v1/admin/catalogs/countries")
