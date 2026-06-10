@@ -46,6 +46,7 @@ public class GeographicCatalogService {
     private final LocalityRepository localityRepository;
     private final RouteTravelTimeRepository routeTravelTimeRepository;
     private final GoogleRoutesService googleRoutesService;
+    private final GoogleGeocodingService googleGeocodingService;
 
     public List<CountryResponse> listCountries(boolean activeOnly) {
         return (activeOnly ? countryRepository.findByActiveTrueOrderByNameAsc() : countryRepository.findAllByOrderByNameAsc())
@@ -264,9 +265,12 @@ public class GeographicCatalogService {
         LocalityContext originContext = resolveLocalityContext(origin);
         LocalityContext destinationContext = resolveLocalityContext(destination);
 
+        GoogleGeocodingService.GeoPoint originPoint = resolveLocalityCoordinates(origin);
+        GoogleGeocodingService.GeoPoint destinationPoint = resolveLocalityCoordinates(destination);
+
         GoogleRoutesService.DrivingRouteResult route = googleRoutesService.computeDrivingRoute(
-                originContext.address(),
-                destinationContext.address()
+                originPoint.lat(), originPoint.lng(),
+                destinationPoint.lat(), destinationPoint.lng()
         );
 
         double distanceKm = Math.round(route.distanceMeters() / 100.0) / 10.0;
@@ -393,13 +397,18 @@ public class GeographicCatalogService {
      */
     public LocalityResponse calculateLocalityTravelTime(String id) {
         Locality locality = findLocality(id);
-        LocalityContext context = resolveLocalityContext(locality);
         Municipality municipality = findMunicipality(locality.getMunicipalityId());
         GeoState state = findState(municipality.getStateId());
         Country country = findCountry(state.getCountryId());
 
-        String origin = String.join(", ", municipality.getName(), state.getName(), countryNameForGeocoding(country));
-        int minutes = googleRoutesService.drivingMinutes(origin, context.address());
+        GoogleGeocodingService.GeoPoint originPoint = googleGeocodingService.geocodeMunicipality(
+                municipality.getName(), state.getName(), countryCode(country));
+        GoogleGeocodingService.GeoPoint destinationPoint = resolveLocalityCoordinates(locality);
+
+        int minutes = googleRoutesService.computeDrivingRoute(
+                originPoint.lat(), originPoint.lng(),
+                destinationPoint.lat(), destinationPoint.lng()
+        ).minutes();
 
         Instant now = Instant.now();
         locality.setEstimatedTravelMinutes(minutes);
@@ -448,9 +457,36 @@ public class GeographicCatalogService {
         GeoState state = findState(municipality.getStateId());
         Country country = findCountry(state.getCountryId());
         return new LocalityContext(
-                toLocalityOption(locality, municipality, state, country).label(),
-                buildLocalityAddress(locality, municipality, state, country)
+                toLocalityOption(locality, municipality, state, country).label()
         );
+    }
+
+    /**
+     * Devuelve las coordenadas de la localidad. Si no estan cacheadas, las
+     * geocodifica (filtrando por municipio) y las persiste para usos futuros.
+     */
+    private GoogleGeocodingService.GeoPoint resolveLocalityCoordinates(Locality locality) {
+        if (locality.getLatitude() != null && locality.getLongitude() != null) {
+            return new GoogleGeocodingService.GeoPoint(locality.getLatitude(), locality.getLongitude(), null);
+        }
+
+        Municipality municipality = findMunicipality(locality.getMunicipalityId());
+        GeoState state = findState(municipality.getStateId());
+        Country country = findCountry(state.getCountryId());
+
+        GoogleGeocodingService.GeoPoint point = googleGeocodingService.geocodeLocality(
+                locality.getName(), municipality.getName(), state.getName(), countryCode(country));
+
+        locality.setLatitude(point.lat());
+        locality.setLongitude(point.lng());
+        locality.setGeocodedAt(Instant.now());
+        locality.setUpdatedAt(Instant.now());
+        localityRepository.save(locality);
+        return point;
+    }
+
+    private String countryCode(Country country) {
+        return country.getCode() == null || country.getCode().isBlank() ? "MX" : country.getCode().trim();
     }
 
     private LocalityOptionResponse toLocalityOption(
@@ -470,36 +506,7 @@ public class GeographicCatalogService {
                 .build();
     }
 
-    private String buildLocalityAddress(
-            Locality locality,
-            Municipality municipality,
-            GeoState state,
-            Country country
-    ) {
-        return String.join(", ",
-                locality.getName(),
-                municipality.getName(),
-                state.getName(),
-                countryNameForGeocoding(country)
-        );
-    }
-
-    /**
-     * Google Routes geocodes "Mexico" (sin acento) de forma ambigua y puede colapsar
-     * origen y destino al mismo punto (~0.5 km). Para MX usamos siempre "México".
-     */
-    private String countryNameForGeocoding(Country country) {
-        if (country.getCode() != null && "MX".equalsIgnoreCase(country.getCode().trim())) {
-            return "México";
-        }
-        String name = country.getName() == null ? "" : country.getName().trim();
-        if (name.equalsIgnoreCase("Mexico") || name.equalsIgnoreCase("MEXICO")) {
-            return "México";
-        }
-        return name.isEmpty() ? "México" : name;
-    }
-
-    private record LocalityContext(String label, String address) {
+    private record LocalityContext(String label) {
     }
 
     private void ensureStateUnique(String countryId, String name, String code, String currentId) {

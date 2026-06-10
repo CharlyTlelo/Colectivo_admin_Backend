@@ -27,23 +27,27 @@ public class GoogleRoutesService {
         this.apiKey = apiKey;
     }
 
-    public int drivingMinutes(String originAddress, String destinationAddress) {
-        return computeDrivingRoute(originAddress, destinationAddress).minutes();
-    }
-
-    public DrivingRouteResult computeDrivingRoute(String originAddress, String destinationAddress) {
+    /**
+     * Calcula la ruta en auto entre dos coordenadas. Usamos lat/lng (no texto)
+     * porque Google geocodifica de forma ambigua nombres como "Centro" o
+     * localidades dentro de una alcaldia, colapsando origen y destino.
+     */
+    public DrivingRouteResult computeDrivingRoute(double originLat, double originLng,
+                                                  double destinationLat, double destinationLng) {
         if (apiKey == null || apiKey.isBlank()) {
             throw new IllegalStateException("Google Maps no esta configurado (falta GOOGLE_MAPS_API_KEY)");
         }
 
         Map<String, Object> body = Map.of(
-                "origin", Map.of("address", originAddress),
-                "destination", Map.of("address", destinationAddress),
+                "origin", latLngWaypoint(originLat, originLng),
+                "destination", latLngWaypoint(destinationLat, destinationLng),
                 "travelMode", "DRIVE",
                 "routingPreference", "TRAFFIC_AWARE",
                 "languageCode", "es-MX",
                 "regionCode", "MX"
         );
+        String originAddress = originLat + "," + originLng;
+        String destinationAddress = destinationLat + "," + destinationLng;
 
         ComputeRoutesResponse response;
         try {
@@ -73,6 +77,10 @@ public class GoogleRoutesService {
         int minutes = (int) Math.max(1, Math.ceil(seconds / 60.0));
         Long distanceMeters = response.routes().get(0).distanceMeters();
         return new DrivingRouteResult(minutes, distanceMeters != null ? distanceMeters : 0L);
+    }
+
+    private Map<String, Object> latLngWaypoint(double lat, double lng) {
+        return Map.of("location", Map.of("latLng", Map.of("latitude", lat, "longitude", lng)));
     }
 
     private long parseDurationSeconds(String duration) {

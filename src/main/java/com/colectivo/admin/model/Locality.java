@@ -29,6 +29,11 @@ public class Locality {
     private Integer estimatedTravelMinutes;
     private Instant travelTimeCalculatedAt;
 
+    /** Coordenadas geocodificadas (cache) para calculos de ruta confiables. */
+    private Double latitude;
+    private Double longitude;
+    private Instant geocodedAt;
+
     private Instant createdAt;
     private Instant updatedAt;
 }
