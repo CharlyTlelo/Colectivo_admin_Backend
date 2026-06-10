@@ -21,6 +21,8 @@ colectivo:
     otp-max-attempts: 3
   archive:
     directory: ${TRIP_ARCHIVE_DIR:./data/trip-archives}
+  maps:
+    api-key: ${GOOGLE_MAPS_API_KEY:}
   data-seeder:
     enabled: ${COLECTIVO_DATA_SEEDER_ENABLED:true}
   cors:

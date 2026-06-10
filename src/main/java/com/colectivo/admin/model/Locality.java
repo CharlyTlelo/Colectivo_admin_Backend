@@ -24,6 +24,11 @@ public class Locality {
     private String name;
     private LocalityType type;
     private boolean active;
+
+    /** Tiempo estimado en auto desde el municipio/alcaldia hasta la localidad (Google Maps). */
+    private Integer estimatedTravelMinutes;
+    private Instant travelTimeCalculatedAt;
+
     private Instant createdAt;
     private Instant updatedAt;
 }

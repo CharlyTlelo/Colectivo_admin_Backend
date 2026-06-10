@@ -32,6 +32,7 @@ public class GeographicCatalogService {
     private final GeoStateRepository stateRepository;
     private final MunicipalityRepository municipalityRepository;
     private final LocalityRepository localityRepository;
+    private final GoogleRoutesService googleRoutesService;
 
     public List<CountryResponse> listCountries(boolean activeOnly) {
         return (activeOnly ? countryRepository.findByActiveTrueOrderByNameAsc() : countryRepository.findAllByOrderByNameAsc())
@@ -206,6 +207,28 @@ public class GeographicCatalogService {
         locality.setType(request.getType());
         locality.setActive(defaultActive(request.getActive()));
         locality.setUpdatedAt(Instant.now());
+        return LocalityResponse.from(localityRepository.save(locality));
+    }
+
+    /**
+     * Calcula (o recalcula manualmente) el tiempo estimado de manejo desde el
+     * municipio/alcaldia hasta la localidad usando Google Maps y lo persiste.
+     */
+    public LocalityResponse calculateLocalityTravelTime(String id) {
+        Locality locality = findLocality(id);
+        Municipality municipality = findMunicipality(locality.getMunicipalityId());
+        GeoState state = findState(municipality.getStateId());
+        Country country = findCountry(state.getCountryId());
+
+        String origin = String.join(", ", municipality.getName(), state.getName(), country.getName());
+        String destination = String.join(", ", locality.getName(), municipality.getName(), state.getName(), country.getName());
+
+        int minutes = googleRoutesService.drivingMinutes(origin, destination);
+
+        Instant now = Instant.now();
+        locality.setEstimatedTravelMinutes(minutes);
+        locality.setTravelTimeCalculatedAt(now);
+        locality.setUpdatedAt(now);
         return LocalityResponse.from(localityRepository.save(locality));
     }
 

@@ -127,6 +127,11 @@ public class GeographicCatalogController {
         return catalogService.updateLocality(id, request);
     }
 
+    @PostMapping("/api/v1/admin/catalogs/localities/{id}/travel-time")
+    public LocalityResponse calculateLocalityTravelTime(@PathVariable String id) {
+        return catalogService.calculateLocalityTravelTime(id);
+    }
+
     @PatchMapping("/api/v1/admin/catalogs/localities/{id}/deactivate")
     public ResponseEntity<Void> deactivateLocality(@PathVariable String id) {
         catalogService.deactivateLocality(id);

@@ -11,6 +11,8 @@ public record LocalityResponse(
         String name,
         LocalityType type,
         boolean active,
+        Integer estimatedTravelMinutes,
+        String travelTimeCalculatedAt,
         String createdAt,
         String updatedAt
 ) {
@@ -21,6 +23,8 @@ public record LocalityResponse(
                 .name(locality.getName())
                 .type(locality.getType())
                 .active(locality.isActive())
+                .estimatedTravelMinutes(locality.getEstimatedTravelMinutes())
+                .travelTimeCalculatedAt(locality.getTravelTimeCalculatedAt() != null ? locality.getTravelTimeCalculatedAt().toString() : null)
                 .createdAt(locality.getCreatedAt() != null ? locality.getCreatedAt().toString() : null)
                 .updatedAt(locality.getUpdatedAt() != null ? locality.getUpdatedAt().toString() : null)
                 .build();
