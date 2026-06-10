@@ -9,6 +9,7 @@ import com.colectivo.admin.dto.catalog.MunicipalityRequest;
 import com.colectivo.admin.dto.catalog.MunicipalityResponse;
 import com.colectivo.admin.dto.catalog.RouteTravelTimeBatchResponse;
 import com.colectivo.admin.dto.catalog.RouteTravelTimeResponse;
+import com.colectivo.admin.dto.catalog.RouteTravelTimeSaveRequest;
 import com.colectivo.admin.dto.catalog.StateRequest;
 import com.colectivo.admin.dto.catalog.StateResponse;
 import com.colectivo.admin.exception.ConflictException;
@@ -282,20 +283,8 @@ public class GeographicCatalogService {
         double distanceKm = Math.round(route.distanceMeters() / 100.0) / 10.0;
         double returnDistanceKm = Math.round(routeBack.distanceMeters() / 100.0) / 10.0;
 
-        RouteTravelTime saved = saveRouteTravelTime(
-                origin.getId(), destination.getId(),
-                originContext.label(), destinationContext.label(),
-                route.minutes(), distanceKm,
-                routeBack.minutes(), returnDistanceKm
-        );
-
-        // Reflejar en AMBAS localidades. Para cada una, ida = salir de ella,
-        // vuelta = regresar a ella:
-        //  - origen:  ida = origen→destino,  vuelta = destino→origen
-        //  - destino: ida = destino→origen,  vuelta = origen→destino
-        applyLocalityRouteTimes(origin, route.minutes(), routeBack.minutes(), saved.getCalculatedAt());
-        applyLocalityRouteTimes(destination, routeBack.minutes(), route.minutes(), saved.getCalculatedAt());
-
+        // Solo previsualización: NO persiste. El guardado (y el reflejo en las
+        // localidades) ocurre al pulsar "Guardar registro" → saveRouteTravelTimes.
         return RouteTravelTimeResponse.builder()
                 .originLocalityId(origin.getId())
                 .destinationLocalityId(destination.getId())
@@ -305,8 +294,56 @@ public class GeographicCatalogService {
                 .distanceKm(distanceKm)
                 .returnTravelMinutes(routeBack.minutes())
                 .returnDistanceKm(returnDistanceKm)
-                .calculatedAt(saved.getCalculatedAt())
+                .calculatedAt(Instant.now())
                 .build();
+    }
+
+    /**
+     * Persiste tiempos ya calculados (botón "Guardar registro"): guarda el par
+     * origen-destino en route_travel_times y refleja ida/vuelta en AMBAS
+     * localidades. No vuelve a llamar a Google: usa los minutos/distancias del
+     * cálculo previo.
+     */
+    public List<RouteTravelTimeResponse> saveRouteTravelTimes(List<RouteTravelTimeSaveRequest.Item> items) {
+        if (items == null || items.isEmpty()) {
+            throw new IllegalArgumentException("No hay rutas calculadas para guardar");
+        }
+        List<RouteTravelTimeResponse> out = new ArrayList<>(items.size());
+        for (RouteTravelTimeSaveRequest.Item item : items) {
+            if (item.getOriginLocalityId().equals(item.getDestinationLocalityId())) {
+                continue;
+            }
+            Locality origin = findActiveLocality(item.getOriginLocalityId());
+            Locality destination = findActiveLocality(item.getDestinationLocalityId());
+            LocalityContext originContext = resolveLocalityContext(origin);
+            LocalityContext destinationContext = resolveLocalityContext(destination);
+
+            RouteTravelTime saved = saveRouteTravelTime(
+                    origin.getId(), destination.getId(),
+                    originContext.label(), destinationContext.label(),
+                    item.getEstimatedTravelMinutes(), item.getDistanceKm(),
+                    item.getReturnTravelMinutes(), item.getReturnDistanceKm()
+            );
+
+            // Reflejar en AMBAS localidades (ida = salir de ella, vuelta = regresar):
+            //  - origen:  ida = origen→destino,  vuelta = destino→origen
+            //  - destino: ida = destino→origen,  vuelta = origen→destino
+            applyLocalityRouteTimes(origin, item.getEstimatedTravelMinutes(), item.getReturnTravelMinutes(), saved.getCalculatedAt());
+            applyLocalityRouteTimes(destination, item.getReturnTravelMinutes(), item.getEstimatedTravelMinutes(), saved.getCalculatedAt());
+
+            out.add(RouteTravelTimeResponse.builder()
+                    .originLocalityId(origin.getId())
+                    .destinationLocalityId(destination.getId())
+                    .originLabel(originContext.label())
+                    .destinationLabel(destinationContext.label())
+                    .estimatedTravelMinutes(item.getEstimatedTravelMinutes())
+                    .distanceKm(item.getDistanceKm())
+                    .returnTravelMinutes(item.getReturnTravelMinutes())
+                    .returnDistanceKm(item.getReturnDistanceKm())
+                    .calculatedAt(saved.getCalculatedAt())
+                    .build());
+        }
+        return out;
     }
 
     /** Persiste los tiempos ida/vuelta en una localidad (ida = salida, vuelta = regreso). */

@@ -11,6 +11,7 @@ import com.colectivo.admin.dto.catalog.RouteTravelTimeBatchRequest;
 import com.colectivo.admin.dto.catalog.RouteTravelTimeBatchResponse;
 import com.colectivo.admin.dto.catalog.RouteTravelTimeRequest;
 import com.colectivo.admin.dto.catalog.RouteTravelTimeResponse;
+import com.colectivo.admin.dto.catalog.RouteTravelTimeSaveRequest;
 import com.colectivo.admin.dto.catalog.StateRequest;
 import com.colectivo.admin.dto.catalog.StateResponse;
 import com.colectivo.admin.service.GeographicCatalogService;
@@ -166,6 +167,13 @@ public class GeographicCatalogController {
                 request.getOriginLocalityIds(),
                 request.getDestinationLocalityIds()
         );
+    }
+
+    @PostMapping("/api/v1/admin/catalogs/travel-time/save-batch")
+    public List<RouteTravelTimeResponse> saveRouteTravelTimes(
+            @Valid @RequestBody RouteTravelTimeSaveRequest request
+    ) {
+        return catalogService.saveRouteTravelTimes(request.getItems());
     }
 
     @PatchMapping("/api/v1/admin/catalogs/localities/{id}/deactivate")
