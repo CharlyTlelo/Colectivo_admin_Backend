@@ -7,6 +7,7 @@ import com.colectivo.admin.dto.catalog.LocalityRequest;
 import com.colectivo.admin.dto.catalog.LocalityResponse;
 import com.colectivo.admin.dto.catalog.MunicipalityRequest;
 import com.colectivo.admin.dto.catalog.MunicipalityResponse;
+import com.colectivo.admin.dto.catalog.RouteTravelTimeBatchResponse;
 import com.colectivo.admin.dto.catalog.RouteTravelTimeResponse;
 import com.colectivo.admin.dto.catalog.StateRequest;
 import com.colectivo.admin.dto.catalog.StateResponse;
@@ -26,12 +27,17 @@ import org.springframework.stereotype.Service;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
 public class GeographicCatalogService {
+
+    private static final int MAX_ROUTE_COMBINATIONS = 100;
+
     private final CountryRepository countryRepository;
     private final GeoStateRepository stateRepository;
     private final MunicipalityRepository municipalityRepository;
@@ -268,6 +274,65 @@ public class GeographicCatalogService {
                 .estimatedTravelMinutes(route.minutes())
                 .distanceKm(Math.round(route.distanceMeters() / 100.0) / 10.0)
                 .build();
+    }
+
+    public RouteTravelTimeBatchResponse calculateRouteTravelTimeBatch(
+            List<String> originLocalityIds,
+            List<String> destinationLocalityIds
+    ) {
+        Set<String> origins = distinctIds(originLocalityIds, "originLocalityIds");
+        Set<String> destinations = distinctIds(destinationLocalityIds, "destinationLocalityIds");
+
+        int skippedSamePoint = 0;
+        int requested = 0;
+        for (String originId : origins) {
+            for (String destinationId : destinations) {
+                if (originId.equals(destinationId)) {
+                    skippedSamePoint++;
+                    continue;
+                }
+                requested++;
+            }
+        }
+
+        if (requested == 0) {
+            throw new IllegalArgumentException("Selecciona al menos un par origen-destino distinto");
+        }
+        if (requested > MAX_ROUTE_COMBINATIONS) {
+            throw new IllegalArgumentException(
+                    "Demasiadas combinaciones (" + requested + "). Maximo permitido: " + MAX_ROUTE_COMBINATIONS
+            );
+        }
+
+        List<RouteTravelTimeResponse> results = new ArrayList<>(requested);
+        for (String originId : origins) {
+            for (String destinationId : destinations) {
+                if (originId.equals(destinationId)) {
+                    continue;
+                }
+                results.add(calculateRouteTravelTime(originId, destinationId));
+            }
+        }
+
+        return RouteTravelTimeBatchResponse.builder()
+                .results(results)
+                .requestedCombinations(requested)
+                .skippedSamePointCombinations(skippedSamePoint)
+                .build();
+    }
+
+    private Set<String> distinctIds(List<String> ids, String fieldName) {
+        if (ids == null || ids.isEmpty()) {
+            throw new IllegalArgumentException(fieldName + " no puede estar vacio");
+        }
+        Set<String> distinct = new LinkedHashSet<>();
+        for (String id : ids) {
+            if (id == null || id.isBlank()) {
+                throw new IllegalArgumentException(fieldName + " contiene ids invalidos");
+            }
+            distinct.add(id.trim());
+        }
+        return distinct;
     }
 
     /**
