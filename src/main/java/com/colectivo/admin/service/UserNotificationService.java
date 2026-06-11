@@ -82,6 +82,17 @@ public class UserNotificationService {
                 data);
     }
 
+    public void notifySupportCloseRequest(String userId, String conversationId) {
+        Map<String, String> data = new LinkedHashMap<>();
+        data.put("screen", "/support");
+        data.put("conversationId", conversationId);
+        data.put("closeRequested", "true");
+        push(userId, TYPE_SUPPORT,
+                "¿Terminar conversación?",
+                "El equipo de soporte pregunta si deseas cerrar esta conversación. Responde en el chat.",
+                data);
+    }
+
     private String rejectionBody(List<String> rejectedFields, String note) {
         if (note != null && !note.isBlank()) {
             return "Tu verificacion fue rechazada: " + note.trim();

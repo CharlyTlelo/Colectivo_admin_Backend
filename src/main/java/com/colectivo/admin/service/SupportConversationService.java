@@ -27,6 +27,9 @@ public class SupportConversationService {
     private static final String STATUS_OPEN = "open";
     private static final String STATUS_CLOSED = "closed";
     private static final String ADMIN_ALIAS = "Soporte Colectivo";
+    private static final String MESSAGE_TYPE_CLOSE_PROMPT = "close_prompt";
+    private static final String CLOSE_PROMPT_TEXT =
+            "¿Deseas terminar esta conversación? Responde con Sí o No. Si no hay actividad, se eliminará en 2 días.";
 
     private final SupportConversationRepository supportConversationRepository;
     private final UserRepository userRepository;
@@ -98,11 +101,35 @@ public class SupportConversationService {
         conversation.setStatus(STATUS_CLOSED);
         conversation.setClosedAt(now);
         conversation.setClosedByAdmin(authentication != null ? authentication.getName() : "admin");
+        conversation.setCloseRequestedAt(null);
+        conversation.setCloseRequestedBy(null);
         conversation.setHasUnreadAdmin(false);
         conversation.setHasUnreadUser(false);
         supportConversationRepository.save(conversation);
         supportChatStore.purge(id);
         userNotificationService.notifySupportClosed(conversation.getUserId(), conversation.getId());
+        return toDto(conversation, findUser(conversation.getUserId()));
+    }
+
+    public SupportConversationDto requestClose(String id, Authentication authentication) {
+        SupportConversation conversation = requireConversation(id);
+        requireOpenConversation(conversation);
+        if (conversation.getCloseRequestedAt() != null) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Ya se solicito terminar esta conversacion.");
+        }
+
+        Instant now = Instant.now(clock);
+        String adminId = authentication != null ? authentication.getName() : "admin";
+        supportChatStore.append(id, adminId, ADMIN_ALIAS, "admin", CLOSE_PROMPT_TEXT, now, MESSAGE_TYPE_CLOSE_PROMPT);
+
+        conversation.setCloseRequestedAt(now);
+        conversation.setCloseRequestedBy(adminId);
+        conversation.setLastMessageAt(now);
+        conversation.setLastMessagePreview(truncate(CLOSE_PROMPT_TEXT, 120));
+        conversation.setHasUnreadUser(true);
+        supportConversationRepository.save(conversation);
+
+        userNotificationService.notifySupportCloseRequest(conversation.getUserId(), conversation.getId());
         return toDto(conversation, findUser(conversation.getUserId()));
     }
 
@@ -136,6 +163,8 @@ public class SupportConversationService {
         dto.setLastMessagePreview(conversation.getLastMessagePreview());
         dto.setHasUnreadAdmin(conversation.isHasUnreadAdmin());
         dto.setHasUnreadUser(conversation.isHasUnreadUser());
+        dto.setCloseRequestedAt(conversation.getCloseRequestedAt());
+        dto.setCloseRequestedBy(conversation.getCloseRequestedBy());
         return dto;
     }
 

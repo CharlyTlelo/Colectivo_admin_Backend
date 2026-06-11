@@ -35,4 +35,6 @@ public class SupportConversation {
     private String lastMessagePreview;
     private boolean hasUnreadAdmin;
     private boolean hasUnreadUser;
+    private Instant closeRequestedAt;
+    private String closeRequestedBy;
 }

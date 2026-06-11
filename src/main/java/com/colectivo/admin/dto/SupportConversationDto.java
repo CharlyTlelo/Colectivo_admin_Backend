@@ -19,4 +19,6 @@ public class SupportConversationDto {
     private String lastMessagePreview;
     private boolean hasUnreadAdmin;
     private boolean hasUnreadUser;
+    private Instant closeRequestedAt;
+    private String closeRequestedBy;
 }

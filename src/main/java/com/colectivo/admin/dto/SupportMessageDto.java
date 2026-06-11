@@ -13,4 +13,5 @@ public class SupportMessageDto {
     private String senderRole;
     private String content;
     private Instant sentAt;
+    private String messageType;
 }

@@ -34,12 +34,18 @@ public class SupportChatStore {
 
     public String append(String conversationId, String senderId, String alias, String senderRole,
                          String content, Instant sentAt) {
+        return append(conversationId, senderId, alias, senderRole, content, sentAt, "text");
+    }
+
+    public String append(String conversationId, String senderId, String alias, String senderRole,
+                         String content, Instant sentAt, String messageType) {
         String key = key(conversationId);
         Map<String, String> fields = new LinkedHashMap<>();
         fields.put("senderId", nullSafe(senderId));
         fields.put("alias", nullSafe(alias));
         fields.put("senderRole", nullSafe(senderRole));
         fields.put("content", nullSafe(content));
+        fields.put("messageType", nullSafe(messageType != null ? messageType : "text"));
         fields.put("sentAt", sentAt != null ? sentAt.toString() : Instant.now().toString());
 
         MapRecord<String, String, String> record = StreamRecords.mapBacked(fields).withStreamKey(key);
@@ -83,6 +89,8 @@ public class SupportChatStore {
         dto.setAlias(asString(values.get("alias")));
         dto.setSenderRole(asString(values.get("senderRole")));
         dto.setContent(asString(values.get("content")));
+        String messageType = asString(values.get("messageType"));
+        dto.setMessageType(messageType != null && !messageType.isBlank() ? messageType : "text");
         String sentAt = asString(values.get("sentAt"));
         if (sentAt != null && !sentAt.isBlank()) {
             try { dto.setSentAt(Instant.parse(sentAt)); } catch (Exception ignore) {}

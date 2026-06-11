@@ -53,4 +53,11 @@ public class SupportConversationController {
             Authentication authentication) {
         return ResponseEntity.ok(supportConversationService.closeConversation(id, authentication));
     }
+
+    @PostMapping("/{id}/request-close")
+    public ResponseEntity<SupportConversationDto> requestClose(
+            @PathVariable String id,
+            Authentication authentication) {
+        return ResponseEntity.ok(supportConversationService.requestClose(id, authentication));
+    }
 }
