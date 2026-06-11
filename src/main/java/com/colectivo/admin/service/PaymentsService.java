@@ -113,6 +113,30 @@ public class PaymentsService {
         return new PaymentsSnapshotDto(Instant.now(), kpis, debtors, movements);
     }
 
+    /**
+     * Condona todas las multas pendientes de un usuario: las marca como "waived",
+     * pone debtAmount=0 y desbloquea la cuenta. Admin puede ejecutar esta acción
+     * cuando decide perdonar el adeudo (p.ej. error operativo, excepción comercial).
+     */
+    public void waiveUserDebt(String userId) {
+        List<Fine> pending = fineRepository.findByUserId(userId).stream()
+                .filter(f -> "pending".equals(f.getStatus()))
+                .toList();
+
+        if (pending.isEmpty()) {
+            throw new IllegalStateException("El usuario no tiene multas pendientes");
+        }
+
+        pending.forEach(f -> f.setStatus("waived"));
+        fineRepository.saveAll(pending);
+
+        userRepository.findById(userId).ifPresent(u -> {
+            u.setDebtAmount(0.0);
+            u.setBlocked(false);
+            userRepository.save(u);
+        });
+    }
+
     private static String shortId(String id) {
         if (id == null) return "?";
         return id.length() > 6 ? id.substring(id.length() - 6) : id;
