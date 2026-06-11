@@ -28,8 +28,7 @@ public class SupportConversationService {
     private static final String STATUS_CLOSED = "closed";
     private static final String ADMIN_ALIAS = "Soporte Colectivo";
     private static final String MESSAGE_TYPE_CLOSE_PROMPT = "close_prompt";
-    private static final String CLOSE_PROMPT_TEXT =
-            "¿Deseas terminar esta conversación? Responde con Sí o No. Si no hay actividad, se eliminará en 2 días.";
+    private static final String CLOSE_PROMPT_TEXT = "¿Deseas terminar esta conversación?";
 
     private final SupportConversationRepository supportConversationRepository;
     private final UserRepository userRepository;
