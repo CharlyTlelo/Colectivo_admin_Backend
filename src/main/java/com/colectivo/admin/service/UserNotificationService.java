@@ -29,6 +29,7 @@ public class UserNotificationService {
 
     /** Debe coincidir con un valor de mx.colectivo.api.domain.NotificationType. */
     private static final String TYPE_VERIFICATION = "VERIFICATION";
+    private static final String TYPE_SUPPORT = "SUPPORT";
 
     private final NotificationRepository notificationRepository;
 
@@ -57,6 +58,27 @@ public class UserNotificationService {
         push(userId, TYPE_VERIFICATION,
                 "Verificacion rechazada",
                 rejectionBody(rejectedFields, note),
+                data);
+    }
+
+    public void notifySupportReply(String userId, String conversationId) {
+        Map<String, String> data = new LinkedHashMap<>();
+        data.put("screen", "/support");
+        data.put("conversationId", conversationId);
+        push(userId, TYPE_SUPPORT,
+                "Respuesta de soporte",
+                "El equipo de soporte respondio tu conversacion.",
+                data);
+    }
+
+    public void notifySupportClosed(String userId, String conversationId) {
+        Map<String, String> data = new LinkedHashMap<>();
+        data.put("screen", "/support");
+        data.put("conversationId", conversationId);
+        data.put("status", "closed");
+        push(userId, TYPE_SUPPORT,
+                "Conversacion cerrada",
+                "La conversacion fue cerrada. Si necesitas algo mas, puedes iniciar una nueva.",
                 data);
     }
 
