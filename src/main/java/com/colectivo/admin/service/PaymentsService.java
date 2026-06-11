@@ -76,7 +76,8 @@ public class PaymentsService {
                             u != null ? u.getPhone() : null,
                             debt,
                             e.getValue().size(),
-                            oldest);
+                            oldest,
+                            u != null ? u.getRemainingOpportunities() : null);
                 })
                 .sorted(Comparator.comparingDouble(PaymentsSnapshotDto.DebtorDto::debtAmount).reversed())
                 .toList();

@@ -35,5 +35,6 @@ public class User {
     private int tripCount;
     private double debtAmount;
     private boolean blocked;
+    private Integer remainingOpportunities;
     private Instant createdAt;
 }

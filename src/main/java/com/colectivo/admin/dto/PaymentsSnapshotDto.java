@@ -23,14 +23,15 @@ public record PaymentsSnapshotDto(
             long debtorCount
     ) {}
 
-    /** Usuario con adeudo activo (debtAmount > 0): está bloqueado para reservar/publicar. */
+    /** Usuario con adeudo activo (debtAmount > 0): puede usar el servicio hasta agotar las oportunidades. */
     public record DebtorDto(
             String userId,
             String name,
             String phone,
             double debtAmount,
             long pendingFines,
-            Instant oldestPendingAt
+            Instant oldestPendingAt,
+            Integer remainingOpportunities
     ) {}
 
     /** Una multa con su estado de cobro (movimiento). */
