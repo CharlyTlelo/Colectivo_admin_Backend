@@ -21,7 +21,8 @@ import java.util.stream.IntStream;
 @RequiredArgsConstructor
 public class PromoBannerService {
 
-    private static final Set<String> ALLOWED_PLACEMENTS = Set.of("driver_home");
+    private static final Set<String> ALLOWED_PLACEMENTS = Set.of(
+            "driver_profile", "passenger_profile", "driver_home");
     private static final Set<String> ALLOWED_ACTION_TYPES = Set.of("none", "link", "internal");
 
     private final PromoBannerConfigRepository repository;
