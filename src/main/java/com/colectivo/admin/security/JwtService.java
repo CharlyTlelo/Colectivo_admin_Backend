@@ -47,6 +47,12 @@ public class JwtService {
         return extractClaims(token).getSubject();
     }
 
+    /** Rol declarado en el token. Solo los tokens emitidos por este servicio traen "ADMIN". */
+    public String extractRole(String token) {
+        Object role = extractClaims(token).get("role");
+        return role != null ? role.toString() : null;
+    }
+
     public boolean isTokenValid(String token) {
         try {
             Claims claims = extractClaims(token);

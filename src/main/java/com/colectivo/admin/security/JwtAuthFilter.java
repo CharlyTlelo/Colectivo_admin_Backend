@@ -40,7 +40,10 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         String token = authHeader.substring(7);
 
         try {
-            if (jwtService.isTokenValid(token)) {
+            // Solo se concede ROLE_ADMIN si el token es válido Y su claim de rol es
+            // ADMIN. Sin esta verificación, cualquier token firmado con la misma
+            // llave (p.ej. un usuario de la app Carpool) entraría como administrador.
+            if (jwtService.isTokenValid(token) && "ADMIN".equals(jwtService.extractRole(token))) {
                 String phone = jwtService.extractPhone(token);
                 UsernamePasswordAuthenticationToken authentication =
                         new UsernamePasswordAuthenticationToken(
