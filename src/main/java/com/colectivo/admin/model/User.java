@@ -37,4 +37,8 @@ public class User {
     private boolean blocked;
     private Integer remainingOpportunities;
     private Instant createdAt;
+    /** "pwa" | "browser" — última superficie reportada por la app Carpool. */
+    private String clientSurface;
+    private Instant clientSurfaceUpdatedAt;
+    private Instant pwaInstalledAt;
 }
