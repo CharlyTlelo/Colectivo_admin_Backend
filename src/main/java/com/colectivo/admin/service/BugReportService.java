@@ -46,6 +46,7 @@ public class BugReportService {
             Map.entry("account_profile", "Cuenta o perfil"),
             Map.entry("performance",     "Rendimiento (lento / se traba)"),
             Map.entry("display",         "Visualización en el teléfono"),
+            Map.entry("prefer_native_app", "Prefiero una app"),
             Map.entry("other",           "Otro")
     );
 
