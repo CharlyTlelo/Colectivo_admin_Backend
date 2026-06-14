@@ -2,6 +2,7 @@ package com.colectivo.admin.controller;
 
 import com.colectivo.admin.dto.catalog.CountryRequest;
 import com.colectivo.admin.dto.catalog.CountryResponse;
+import com.colectivo.admin.dto.catalog.LocalityMapPointRequest;
 import com.colectivo.admin.dto.catalog.LocalityOptionResponse;
 import com.colectivo.admin.dto.catalog.LocalityRequest;
 import com.colectivo.admin.dto.catalog.LocalityResponse;
@@ -20,6 +21,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -146,6 +148,20 @@ public class GeographicCatalogController {
     @PostMapping("/api/v1/admin/catalogs/localities/{id}/travel-time")
     public LocalityResponse calculateLocalityTravelTime(@PathVariable String id) {
         return catalogService.calculateLocalityTravelTime(id);
+    }
+
+    @PutMapping("/api/v1/admin/catalogs/localities/{id}/map-point")
+    public LocalityResponse setLocalityMapPoint(
+            @PathVariable String id,
+            @RequestBody LocalityMapPointRequest request
+    ) {
+        return catalogService.setLocalityMapPoint(
+                id, request.getMapsUrl(), request.getLatitude(), request.getLongitude());
+    }
+
+    @DeleteMapping("/api/v1/admin/catalogs/localities/{id}/map-point")
+    public LocalityResponse clearLocalityMapPoint(@PathVariable String id) {
+        return catalogService.clearLocalityMapPoint(id);
     }
 
     @GetMapping("/api/v1/admin/catalogs/localities/active-options")

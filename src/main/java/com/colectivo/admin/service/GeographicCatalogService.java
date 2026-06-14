@@ -50,6 +50,7 @@ public class GeographicCatalogService {
     private final RouteTravelTimeRepository routeTravelTimeRepository;
     private final GoogleRoutesService googleRoutesService;
     private final GoogleGeocodingService googleGeocodingService;
+    private final GoogleMapsLinkParser googleMapsLinkParser;
 
     public List<CountryResponse> listCountries(boolean activeOnly) {
         return (activeOnly ? countryRepository.findByActiveTrueOrderByNameAsc() : countryRepository.findAllByOrderByNameAsc())
@@ -208,6 +209,7 @@ public class GeographicCatalogService {
                 .name(name)
                 .type(request.getType())
                 .active(defaultActive(request.getActive()))
+                .label(normalizeLabel(request.getLabel()))
                 .createdAt(now)
                 .updatedAt(now)
                 .build();
@@ -223,6 +225,7 @@ public class GeographicCatalogService {
         locality.setName(name);
         locality.setType(request.getType());
         locality.setActive(defaultActive(request.getActive()));
+        locality.setLabel(normalizeLabel(request.getLabel()));
         locality.setUpdatedAt(Instant.now());
         return LocalityResponse.from(localityRepository.save(locality));
     }
@@ -562,6 +565,49 @@ public class GeographicCatalogService {
         localityRepository.save(locality);
     }
 
+    /**
+     * Fija manualmente el punto de la localidad a partir de un link de Google Maps
+     * (o coordenadas directas). Este punto gana siempre sobre el auto-geocode.
+     */
+    public LocalityResponse setLocalityMapPoint(String id, String mapsUrl, Double latitude, Double longitude) {
+        Locality locality = findLocality(id);
+
+        double lat;
+        double lng;
+        if (mapsUrl != null && !mapsUrl.isBlank()) {
+            GoogleMapsLinkParser.MapPoint point = googleMapsLinkParser.parse(mapsUrl);
+            lat = point.lat();
+            lng = point.lng();
+        } else if (latitude != null && longitude != null) {
+            if (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
+                throw new IllegalArgumentException("Las coordenadas estan fuera de rango");
+            }
+            lat = latitude;
+            lng = longitude;
+        } else {
+            throw new IllegalArgumentException("Proporciona un link de Google Maps o coordenadas (lat, lng)");
+        }
+
+        Instant now = Instant.now();
+        locality.setManualLatitude(lat);
+        locality.setManualLongitude(lng);
+        locality.setMapsUrl(mapsUrl != null && !mapsUrl.isBlank() ? mapsUrl.trim() : null);
+        locality.setManualLocationSetAt(now);
+        locality.setUpdatedAt(now);
+        return LocalityResponse.from(localityRepository.save(locality));
+    }
+
+    /** Quita el punto manual; la localidad vuelve a depender del auto-geocode. */
+    public LocalityResponse clearLocalityMapPoint(String id) {
+        Locality locality = findLocality(id);
+        locality.setManualLatitude(null);
+        locality.setManualLongitude(null);
+        locality.setMapsUrl(null);
+        locality.setManualLocationSetAt(null);
+        locality.setUpdatedAt(Instant.now());
+        return LocalityResponse.from(localityRepository.save(locality));
+    }
+
     private Country findCountry(String id) {
         return countryRepository.findById(required(id, "countryId"))
                 .orElseThrow(() -> new NotFoundException("Country not found: " + id));
@@ -600,10 +646,15 @@ public class GeographicCatalogService {
     }
 
     /**
-     * Devuelve las coordenadas de la localidad. Si no estan cacheadas, las
-     * geocodifica (filtrando por municipio) y las persiste para usos futuros.
+     * Devuelve las coordenadas de la localidad. Prioridad:
+     *  1. Punto manual fijado por el admin (gana SIEMPRE — evita direcciones erroneas).
+     *  2. Coordenadas auto-geocodificadas cacheadas.
+     *  3. Geocodificacion en vivo (filtrando por municipio), que se persiste.
      */
     private GoogleGeocodingService.GeoPoint resolveLocalityCoordinates(Locality locality) {
+        if (locality.getManualLatitude() != null && locality.getManualLongitude() != null) {
+            return new GoogleGeocodingService.GeoPoint(locality.getManualLatitude(), locality.getManualLongitude(), null);
+        }
         if (locality.getLatitude() != null && locality.getLongitude() != null) {
             return new GoogleGeocodingService.GeoPoint(locality.getLatitude(), locality.getLongitude(), null);
         }
@@ -682,6 +733,15 @@ public class GeographicCatalogService {
 
     private boolean defaultActive(Boolean active) {
         return active == null || active;
+    }
+
+    /** Normaliza la etiqueta opcional: recorta espacios y devuelve null si queda vacia. */
+    private String normalizeLabel(String label) {
+        if (label == null) {
+            return null;
+        }
+        String trimmed = label.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 
     private String required(String value, String field) {

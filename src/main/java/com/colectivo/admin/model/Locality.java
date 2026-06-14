@@ -26,6 +26,12 @@ public class Locality {
     private boolean active;
 
     /**
+     * Etiqueta/referencia opcional con que la gente ubica el lugar (no su direccion
+     * formal). Ej: "Frente a la gasolinera", "La curva". Puede ser null/vacia.
+     */
+    private String label;
+
+    /**
      * Tiempo IDA mostrado en Admin: municipio→localidad (recalc individual) o
      * salida desde esta localidad hacia el destino del último par guardado (batch).
      */
@@ -42,6 +48,16 @@ public class Locality {
     private Double latitude;
     private Double longitude;
     private Instant geocodedAt;
+
+    /**
+     * Punto fijado manualmente por el admin (link de Google Maps). Cuando esta
+     * presente GANA SIEMPRE sobre el auto-geocode para evitar direcciones erroneas.
+     * mapsUrl conserva el link original pegado para referencia/preview.
+     */
+    private Double manualLatitude;
+    private Double manualLongitude;
+    private String mapsUrl;
+    private Instant manualLocationSetAt;
 
     private Instant createdAt;
     private Instant updatedAt;

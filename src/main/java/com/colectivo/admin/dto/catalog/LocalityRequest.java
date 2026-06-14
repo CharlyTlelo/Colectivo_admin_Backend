@@ -17,4 +17,7 @@ public class LocalityRequest {
     private LocalityType type;
 
     private Boolean active;
+
+    /** Etiqueta/referencia opcional. */
+    private String label;
 }
